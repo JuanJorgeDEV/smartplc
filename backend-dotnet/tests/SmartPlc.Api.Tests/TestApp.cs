@@ -8,6 +8,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Time.Testing;
 using SmartPlc.Api.Contracts;
+using SmartPlc.Api.History;
 using SmartPlc.Api.Services;
 
 namespace SmartPlc.Api.Tests;
@@ -43,16 +44,29 @@ public sealed class TestApp : WebApplicationFactory<Program>
 {
     private readonly Dictionary<string, string?> _config;
     private readonly bool _notifierReal;
+    private readonly IHistoryStore? _historyStore;
 
     public FakeTimeProvider Clock { get; } = new(DateTimeOffset.Parse("2026-01-01T12:00:00Z"));
     public FakeNodeRedClient NodeRed { get; } = new();
     public RecordingNotifier Notifier { get; } = new();
 
-    public TestApp(Dictionary<string, string?>? config = null, bool notifierReal = false)
+    public TestApp(Dictionary<string, string?>? config = null, bool notifierReal = false, IHistoryStore? historyStore = null)
     {
         _config = config ?? [];
         _notifierReal = notifierReal;
+        _historyStore = historyStore;
     }
+
+    /// <summary>Histórico ligado com armazenamento em memória; sem espera entre retentativas.</summary>
+    public static TestApp ComHistorico(IHistoryStore store, Dictionary<string, string?>? extra = null)
+    {
+        var cfg = new Dictionary<string, string?> { ["History:RetryDelayMilliseconds"] = "0" };
+        foreach (var (k, v) in extra ?? []) cfg[k] = v;
+        return new TestApp(cfg, historyStore: store);
+    }
+
+    public HistoryPipeline Pipeline => Services.GetRequiredService<HistoryPipeline>();
+    public HistoryStatus HistStatus => Services.GetRequiredService<HistoryStatus>();
 
     public static TestApp ComControle(Dictionary<string, string?>? extra = null)
     {
@@ -77,6 +91,12 @@ public sealed class TestApp : WebApplicationFactory<Program>
             {
                 s.RemoveAll<ITelemetryNotifier>();
                 s.AddSingleton<ITelemetryNotifier>(Notifier);
+            }
+
+            if (_historyStore is not null)
+            {
+                s.RemoveAll<IHistoryStore>();
+                s.AddSingleton(_historyStore);
             }
 
             s.RemoveAll<IHostedService>();
