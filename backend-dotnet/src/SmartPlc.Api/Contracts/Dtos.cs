@@ -17,6 +17,12 @@ public sealed class TelemetriaRequest
     [JsonConverter(typeof(LenientDoubleConverter))] public double? Kp { get; set; }
     [JsonConverter(typeof(LenientDoubleConverter))] public double? Ti { get; set; }
     [JsonConverter(typeof(LenientDoubleConverter))] public double? Td { get; set; }
+
+    /// <summary>
+    /// Opcional. Hora em que o CLP/Node-RED leu os valores (ISO-8601 com fuso, ou milissegundos Unix).
+    /// O fluxo atual não envia; quando existir, separa "hora da aquisição" de "hora do recebimento" no histórico.
+    /// </summary>
+    [JsonConverter(typeof(LenientTimestampConverter))] public DateTimeOffset? AdquiridoEm { get; set; }
 }
 
 /// <summary>

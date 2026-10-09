@@ -59,9 +59,14 @@ public static class PayloadReader
 
 public static class TelemetriaValidator
 {
-    public static IReadOnlyList<CampoErro> Validar(TelemetriaRequest r, ProcessOptions p)
+    /// <summary>Tolerância de relógio entre o Node-RED e o servidor.</summary>
+    public const int MaxFuturoMinutos = 5;
+
+    public static IReadOnlyList<CampoErro> Validar(TelemetriaRequest r, ProcessOptions p, DateTimeOffset agora)
     {
         var erros = new List<CampoErro>();
+        if (r.AdquiridoEm is { } aq && aq > agora.AddMinutes(MaxFuturoMinutos))
+            erros.Add(new CampoErro("adquiridoEm", $"está mais de {MaxFuturoMinutos} min no futuro (relógio do Node-RED desajustado?)"));
         Obrigatorio(erros, "nivel", r.Nivel, p.LeituraMin, p.LeituraMax);
         Obrigatorio(erros, "valvula", r.Valvula, p.LeituraMin, p.LeituraMax);
         Faixa(erros, "setpoint", r.Setpoint, Limites.Percentual);

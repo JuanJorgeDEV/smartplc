@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Text;
 using Microsoft.Extensions.Options;
 using SmartPlc.Api.Contracts;
+using SmartPlc.Api.History;
 using SmartPlc.Api.Options;
 using SmartPlc.Api.Services;
 using SmartPlc.Api.Validation;
@@ -30,6 +31,8 @@ public static class ApiEndpoints
         StalenessMonitor monitor,
         IOptions<IngestOptions> ingest,
         IOptions<ProcessOptions> process,
+        IHistoryRecorder history,
+        TimeProvider clock,
         ILogger<Program> log,
         CancellationToken ct)
     {
@@ -39,7 +42,7 @@ public static class ApiEndpoints
         var leitura = await PayloadReader.LerAsync<TelemetriaRequest>(req.Body, ct);
         if (leitura.Excedeu) return PayloadGrande();
         var dados = leitura.Valor;
-        var erros = leitura.Erros ?? TelemetriaValidator.Validar(dados!, process.Value);
+        var erros = leitura.Erros ?? TelemetriaValidator.Validar(dados!, process.Value, clock.GetUtcNow());
         if (erros.Count > 0)
         {
             log.LogWarning("Telemetria rejeitada: {Erros}", string.Join("; ", erros.Select(e => $"{e.Campo}: {e.Mensagem}")));
@@ -49,6 +52,7 @@ public static class ApiEndpoints
         var status = store.ApplyTelemetria(dados!);
         monitor.MarcarEnviado(status);
         await notifier.NotificarAsync(status, ct);
+        history.RegistrarTelemetria(dados!, status.Telemetria.Timestamp ?? clock.GetUtcNow()); // não bloqueia nem lança
         return Results.Ok(new { status = "ok" });
     }
 

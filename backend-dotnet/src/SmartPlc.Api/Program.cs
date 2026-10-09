@@ -1,6 +1,9 @@
 using System.Text.Json;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using SmartPlc.Api.Endpoints;
+using SmartPlc.Api.History;
+using SmartPlc.Api.Persistence;
 using SmartPlc.Api.Options;
 using SmartPlc.Api.Services;
 using SmartPlc.Api.Validation;
@@ -14,8 +17,17 @@ builder.Services.Configure<IngestOptions>(cfg.GetSection(IngestOptions.Section))
 builder.Services.Configure<ControlOptions>(cfg.GetSection(ControlOptions.Section));
 builder.Services.Configure<NodeRedOptions>(cfg.GetSection(NodeRedOptions.Section));
 
+// Render (e outros PaaS) informam a porta em PORT e exigem escuta em 0.0.0.0. Local continua em http://localhost:5000.
+var portaPaas = Environment.GetEnvironmentVariable("PORT");
+if (!string.IsNullOrEmpty(portaPaas)
+    && string.IsNullOrEmpty(Environment.GetEnvironmentVariable("ASPNETCORE_URLS"))
+    && string.IsNullOrEmpty(cfg["urls"]))
+    builder.WebHost.UseUrls($"http://0.0.0.0:{portaPaas}");
+
 // Corpos de telemetria/controle têm poucas dezenas de bytes; 16 KB é folga de sobra.
 builder.WebHost.ConfigureKestrel(k => k.Limits.MaxRequestBodySize = 16 * 1024);
+
+builder.Services.Configure<HistoryOptions>(cfg.GetSection(HistoryOptions.Section));
 
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<ProcessStateStore>();
@@ -23,6 +35,25 @@ builder.Services.AddSingleton<ITelemetryNotifier, SignalRTelemetryNotifier>();
 builder.Services.AddSingleton<StalenessMonitor>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<StalenessMonitor>());
 builder.Services.AddHttpClient<INodeRedClient, NodeRedClient>(c => c.Timeout = Timeout.InfiniteTimeSpan); // prazo controlado em NodeRedClient
+
+// ---- Histórico (PostgreSQL). Sem connection string => desligado, o restante funciona como antes. ----
+var historyOptions = cfg.GetSection(HistoryOptions.Section).Get<HistoryOptions>() ?? new HistoryOptions();
+var connectionString = historyOptions.Enabled ? DbConnection.Resolve(cfg) : null;
+builder.Services.AddSingleton<HistoryStatus>();
+builder.Services.AddSingleton<HistoryPolicy>();
+if (connectionString is not null)
+{
+    builder.Services.AddDbContextFactory<SmartPlcDbContext>(o => o.UseNpgsql(connectionString));
+    builder.Services.AddSingleton<IHistoryStore, EfHistoryStore>();
+}
+else
+{
+    builder.Services.AddSingleton<IHistoryStore, DisabledHistoryStore>();
+}
+builder.Services.AddSingleton<HistoryPipeline>();
+builder.Services.AddSingleton<IHistoryRecorder>(sp => sp.GetRequiredService<HistoryPipeline>());
+builder.Services.AddHostedService<HistoryWriter>();
+builder.Services.AddHostedService<RetentionService>();
 
 builder.Services.AddSignalR().AddJsonProtocol(o =>
     o.PayloadSerializerOptions = new JsonSerializerOptions(JsonSerializerDefaults.Web));
@@ -54,10 +85,27 @@ else
         app.Logger.LogWarning("Control:Enabled=true: comandos serão encaminhados ao Node-RED.");
 }
 
+if (connectionString is null)
+{
+    app.Logger.LogInformation("Histórico DESLIGADO (defina ConnectionStrings__SmartPlc para ativá-lo).");
+}
+else
+{
+    app.Logger.LogInformation("Histórico ligado: {Banco}", DbConnection.Describe(connectionString));
+    if (historyOptions.MigrateOnStartup)
+    {
+        app.Logger.LogWarning("History:MigrateOnStartup=true: aplicando migrations no banco acima.");
+        var fabrica = app.Services.GetRequiredService<IDbContextFactory<SmartPlcDbContext>>();
+        await using var db = await fabrica.CreateDbContextAsync();
+        await db.Database.MigrateAsync();
+    }
+}
+
 app.UseCors();
 app.UseDefaultFiles();
 app.UseStaticFiles();
 app.MapSmartPlcApi();
+app.MapHistoryApi();
 
 app.Run();
 

@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.SignalR;
 using SmartPlc.Api.Contracts;
+using SmartPlc.Api.History;
 
 namespace SmartPlc.Api.Services;
 
@@ -27,7 +28,7 @@ public sealed class SignalRTelemetryNotifier(IHubContext<TelemetriaHub> hub) : I
 /// Sem telemetria nova, nenhum POST chega para disparar o evento. Este monitor percebe a passagem
 /// online -> offline e avisa os dashboards (o Express nunca avisava).
 /// </summary>
-public sealed class StalenessMonitor(ProcessStateStore store, ITelemetryNotifier notifier, ILogger<StalenessMonitor> log, TimeProvider clock)
+public sealed class StalenessMonitor(ProcessStateStore store, ITelemetryNotifier notifier, ILogger<StalenessMonitor> log, TimeProvider clock, IHistoryRecorder history)
     : BackgroundService
 {
     private volatile bool _ultimoOnline;
@@ -42,6 +43,7 @@ public sealed class StalenessMonitor(ProcessStateStore store, ITelemetryNotifier
         {
             log.LogWarning("Sem telemetria do CLP há mais de {Idade:0.0} s", s.Telemetria.IdadeSegundos);
             _ultimoOnline = false;
+            history.RegistrarPerdaComunicacao(clock.GetUtcNow(), s.Telemetria.IdadeSegundos);
             await notifier.NotificarAsync(s, ct);
         }
     }
