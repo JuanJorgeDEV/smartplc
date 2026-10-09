@@ -50,3 +50,11 @@ Campos aditivos em `telemetria`: `plcOnline`, `idadeSegundos`. A resposta de com
 ## O que NÃO foi validado neste marco
 
 Nada com o Node-RED/CLP reais. Os testes usam um Node-RED falso em memória. Ver `docs/integracao-node-red.md`.
+
+## Problema conhecido: Smart App Control (Windows 11)
+
+Com o *Smart App Control* ativo, o Windows pode bloquear DLLs não assinadas recém-compiladas
+(`Uma política de Controle de Aplicativo bloqueou este arquivo, 0x800711C7`), impedindo `dotnet test` e `dotnet run`.
+Aconteceu em 08/10/2026 numa máquina em que a mesma compilação rodara minutos antes (evento 3077/3118 em
+*CodeIntegrity/Operational*). Não é defeito do código. Alternativas sem enfraquecer a segurança do Windows:
+executar o SDK em contêiner Linux (Docker) ou em WSL, ou assinar os binários.
