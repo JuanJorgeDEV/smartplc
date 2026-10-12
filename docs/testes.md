@@ -54,4 +54,4 @@ Ambiente da execução: PostgreSQL 17.11 (imagem oficial `postgres:17`, contêin
 
 Observação sobre o Smart App Control: um binário recém-compilado costuma ser bloqueado (`0x800711C7`) por alguns minutos e depois liberado. Se `dotnet test` falhar com "Uma política de Controle de Aplicativo bloqueou este arquivo", repita `dotnet test --no-build` depois de alguns minutos (sem recompilar).
 
-Docker Desktop 4.63 não iniciava (sockets Unix obsoletos que o Windows não deixava apagar). Solução usada: renomear `%LOCALAPPDATA%\Dockerun` e `%LOCALAPPDATA%\docker-secrets-engine` (o Docker recria). As pastas antigas ficaram como `*.stale-20261008` e podem ser apagadas depois de reiniciar o Windows.
+Docker Desktop 4.63 não iniciava (sockets Unix obsoletos que o Windows não deixava apagar). Solução usada: renomear `%LOCALAPPDATA%\Docker\run` e `%LOCALAPPDATA%\docker-secrets-engine` (o Docker recria). As pastas antigas ficaram como `*.stale-20261008` e podem ser apagadas depois de reiniciar o Windows.
