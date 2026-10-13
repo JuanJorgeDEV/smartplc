@@ -1,271 +1,109 @@
-<!DOCTYPE html>
-<html lang="pt-BR">
+<!doctype html>
+<html lang="pt-BR" data-theme="dark">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TQ-101 – Controle de nível</title>
-
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css">
-
-    <script src="https://cdn.jsdelivr.net/npm/@microsoft/signalr@8.0.7/dist/browser/signalr.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="dark light">
+    <title>SmartPLC · Supervisório TQ-101</title>
+    <meta name="description" content="Supervisão web, histórico e laboratório didático da malha de nível TQ-101 (CLP Siemens simulado).">
+    <link rel="icon" href="img/marca.svg" type="image/svg+xml">
+    <script>
+        // Tema antes da primeira pintura (evita piscar). Escolha salva > preferência do sistema > escuro.
+        (function () {
+            var t = null;
+            try { t = localStorage.getItem('smartplc.tema'); } catch (e) { }
+            var q = /[?&]tema=(light|dark)/.exec(location.search); // ?tema=dark|light força o tema (usado nas capturas)
+            if (q) t = q[1];
+            if (t !== 'light' && t !== 'dark') t = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-theme', t);
+        })();
+    </script>
+    <link rel="preload" href="fonts/space-grotesk-500.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="stylesheet" href="css/fonts.css">
+    <link rel="stylesheet" href="css/tokens.css">
+    <link rel="stylesheet" href="css/base.css">
+    <link rel="stylesheet" href="css/app.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/@microsoft/signalr@8.0.7/dist/browser/signalr.min.js"></script>
+    <script type="module" src="js/main.js"></script>
 </head>
-<body data-dados="obsoleto">
+<body>
+    <a class="skip" href="#conteudo">Ir para o conteúdo</a>
 
-    <!-- Barra superior -->
-    <header class="topo">
-        <div class="topo-titulo">
-            <h1>Tanque TQ-101</h1>
-            <span>Controle de nível</span>
-        </div>
-        <div class="topo-estado">
-            <div id="chipAlarme" class="chip-alarme ok">Sem alarmes</div>
-            <div class="medida">
-                <span class="medida-rotulo">Última leitura do CLP</span>
-                <span id="frescor" class="medida-valor">—</span>
-            </div>
-            <div class="medida">
-                <span class="medida-rotulo">Hora</span>
-                <span id="relogio" class="medida-valor">--:--:--</span>
-            </div>
-            <div id="statusConexao" class="conexao offline">Desconectado</div>
-        </div>
-    </header>
-
-    <!-- Faixa de alarme ativo -->
-    <div id="faixaAlarme" class="faixa-alarme" role="alert" hidden>
-        <span id="faixaTexto"></span>
-        <button type="button" id="btnReconhecerFaixa" class="btn">Reconhecer</button>
-    </div>
-
-    <main class="layout">
-
-        <!-- Sinótico do processo -->
-        <section class="painel sinotico" aria-labelledby="t-proc">
-            <div class="painel-topo">
-                <h2 id="t-proc">Processo</h2>
-                <span class="chip-modo js-modo-chip">Automático</span>
-            </div>
-
-            <div class="sinotico-corpo">
-                <svg id="svgProcesso" viewBox="0 0 600 460" role="img" aria-label="Sinótico do tanque TQ-101 com válvula de entrada, escala de nível e setpoint">
-                    <defs>
-                        <linearGradient id="gradAgua" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0" style="stop-color: var(--agua-topo)"/>
-                            <stop offset="1" style="stop-color: var(--agua-fundo)"/>
-                        </linearGradient>
-                        <linearGradient id="gradBrilho" x1="0" y1="0" x2="1" y2="0">
-                            <stop offset="0" stop-color="#fff" stop-opacity=".10"/>
-                            <stop offset=".35" stop-color="#fff" stop-opacity="0"/>
-                        </linearGradient>
-                        <clipPath id="recorteTanque">
-                            <rect x="230" y="100" width="170" height="300" rx="6"/>
-                        </clipPath>
-                    </defs>
-
-                    <!-- Tubulação de entrada (com válvula FV-101) -->
-                    <path class="tubo" d="M20 56 H315 V100"/>
-                    <path class="tubo-int" d="M20 56 H315 V100"/>
-                    <path id="fluxoEntrada" class="fluxo" d="M20 56 H315 V100"/>
-
-                    <!-- Tubulação de saída -->
-                    <path class="tubo" d="M315 400 V428 H580"/>
-                    <path class="tubo-int" d="M315 400 V428 H580"/>
-                    <path id="fluxoSaida" class="fluxo" d="M315 400 V428 H580"/>
-
-                    <!-- Válvula de entrada -->
-                    <g id="valvula" transform="translate(130 56)">
-                        <line class="haste" x1="0" y1="-12" x2="0" y2="-28"/>
-                        <rect class="atuador" x="-16" y="-42" width="32" height="14" rx="4"/>
-                        <path id="valvulaCorpo" class="valvula-corpo" d="M-20 -12 L0 0 L-20 12 Z M20 -12 L0 0 L20 12 Z"/>
-                        <text class="etiqueta" x="26" y="-30">FV-101</text>
-                        <text id="valvulaTexto" class="valor-svg" x="0" y="34" text-anchor="middle">0.0 %</text>
-                    </g>
-
-                    <!-- Válvula manual de saída (decorativa) -->
-                    <g transform="translate(470 428)">
-                        <path class="valvula-manual" d="M-16 -10 L0 0 L-16 10 Z M16 -10 L0 0 L16 10 Z"/>
-                        <text class="etiqueta" x="0" y="28" text-anchor="middle">HV-102</text>
-                    </g>
-
-                    <!-- Tanque -->
-                    <rect class="tanque-fundo" x="230" y="100" width="170" height="300" rx="6"/>
-                    <g clip-path="url(#recorteTanque)">
-                        <rect id="liquido" x="230" y="100" width="170" height="300" fill="url(#gradAgua)" style="transform-origin: 0 400px; transform: scaleY(0)"/>
-                        <line id="superficie" x1="230" x2="400" y1="400" y2="400" class="superficie" style="transform: translateY(0)"/>
-                        <rect class="zona zona-baixa" x="230" y="370" width="170" height="30"/>
-                        <rect class="zona zona-alta" x="230" y="100" width="170" height="30"/>
-                        <rect x="230" y="100" width="170" height="300" fill="url(#gradBrilho)"/>
-                    </g>
-                    <line class="limite limite-baixo" x1="230" x2="400" y1="370" y2="370"/>
-                    <line class="limite limite-alto" x1="230" x2="400" y1="130" y2="130"/>
-                    <text class="limite-txt limite-txt-baixo halo" x="237" y="365">L 10</text>
-                    <text class="limite-txt limite-txt-alto halo" x="237" y="125">H 90</text>
-                    <rect id="tanqueContorno" class="tanque-contorno" x="230" y="100" width="170" height="300" rx="6"/>
-
-                    <!-- Escala graduada (gerada em app.js) -->
-                    <g id="escala"></g>
-
-                    <!-- Leitura de nível dentro do tanque -->
-                    <text class="etiqueta halo" x="315" y="226" text-anchor="middle">LT-101</text>
-                    <text id="pvTexto" class="pv-num halo" x="315" y="266" text-anchor="middle">0.0 %</text>
-
-                    <!-- Marcador de setpoint -->
-                    <g id="spMarcador" style="transform: translateY(400px)">
-                        <line class="sp-linha" x1="230" x2="402" y1="0" y2="0"/>
-                        <path class="sp-seta" d="M402 0 L416 -8 V8 Z"/>
-                        <text id="spTexto" class="sp-txt" x="422" y="4">SP 0.0</text>
-                    </g>
+    <div class="app">
+        <aside class="rail">
+            <div class="brand">
+                <svg class="marca" viewBox="0 0 50 48" width="34" height="32" aria-hidden="true">
+                    <path d="M15 4V44H39V4" fill="none" stroke="currentColor" stroke-width="3.5" />
+                    <rect x="15" y="25" width="24" height="19" fill="currentColor" />
+                    <path d="M17 14H47" stroke="currentColor" stroke-width="2.5" stroke-dasharray="4 3" />
+                    <path d="M4 44H11M7 34H11M7 24H11M4 14H11M7 4H11" stroke="currentColor" stroke-width="1.5" />
                 </svg>
+                <div class="brand-txt">
+                    <span class="brand-nome">SmartPLC</span>
+                    <span class="brand-sub">TQ-101 · malha de nível</span>
+                </div>
+            </div>
 
-                <ul class="lampadas" aria-label="Faixa do nível">
-                    <li><span id="ledLow" class="lampada baixo"></span>Nível baixo (&lt; 10 %)</li>
-                    <li><span id="ledNormal" class="lampada normal"></span>Normal</li>
-                    <li><span id="ledHigh" class="lampada alto"></span>Nível alto (&gt; 90 %)</li>
+            <nav aria-label="Seções do aplicativo">
+                <ul class="nav">
+                    <li><a href="#/visao-geral" data-view="visao-geral"><span class="idx">01</span><span class="lbl">Visão Geral</span><span class="lbl-c">Visão</span></a></li>
+                    <li><a href="#/controle" data-view="controle"><span class="idx">02</span><span class="lbl">Controle</span><span class="lbl-c">Controle</span></a></li>
+                    <li><a href="#/historico" data-view="historico"><span class="idx">03</span><span class="lbl">Histórico</span><span class="lbl-c">Histórico</span></a></li>
+                    <li><a href="#/laboratorio" data-view="laboratorio"><span class="idx">04</span><span class="lbl">Laboratório</span><span class="lbl-c">Lab</span></a></li>
+                    <li><a href="#/integracoes" data-view="integracoes"><span class="idx">05</span><span class="lbl">Integrações</span><span class="lbl-c">Integr.</span></a></li>
                 </ul>
-            </div>
-        </section>
+            </nav>
 
-        <!-- Tendência -->
-        <section class="painel tendencia" aria-labelledby="t-tend">
-            <div class="painel-topo">
-                <h2 id="t-tend">Tendência</h2>
-                <div class="ferramentas">
-                    <ul class="legenda">
-                        <li><i class="sw pv"></i>Nível</li>
-                        <li><i class="sw sp"></i>Setpoint</li>
-                        <li><i class="sw cv"></i>Saída da válvula</li>
-                    </ul>
-                    <label class="seletor">
-                        <span class="so-leitor">Janela de tempo</span>
-                        <select id="selJanela">
-                            <option value="60">1 min</option>
-                            <option value="300" selected>5 min</option>
-                            <option value="900">15 min</option>
-                            <option value="3600">1 h</option>
-                        </select>
-                    </label>
-                    <button type="button" id="btnPausa" class="btn" aria-pressed="false">Pausar</button>
-                    <button type="button" id="btnCsv" class="btn">Exportar CSV</button>
-                </div>
+            <div class="rail-foot">
+                <p class="rail-modo eyebrow" id="rail-modo">Modo —</p>
+                <button type="button" class="btn small" id="btn-tema" aria-label="Alternar tema claro e escuro">Tema</button>
             </div>
-            <div class="pilha">
-                <p class="legenda-eixo">Nível e setpoint (%)</p>
-                <div class="quadro quadro-nivel"><canvas id="gNivel"></canvas></div>
-                <p class="legenda-eixo">Saída da válvula (%)</p>
-                <div class="quadro quadro-saida"><canvas id="gSaida"></canvas></div>
-            </div>
-        </section>
-
-        <!-- Controlador -->
-        <aside class="painel controlador" aria-labelledby="t-ctrl">
-            <div class="painel-topo">
-                <h2 id="t-ctrl">Controlador LIC-101</h2>
-                <span class="chip-modo js-modo-chip">Automático</span>
-            </div>
-
-            <div class="leituras">
-                <div class="leitura pv">
-                    <span class="rotulo">Nível (PV)</span>
-                    <span class="valor"><b id="roPv">0.0</b><small>%</small></span>
-                </div>
-                <div class="leitura sp">
-                    <span class="rotulo">Setpoint (SP)</span>
-                    <span class="valor"><b id="roSp">0.0</b><small>%</small></span>
-                </div>
-                <div class="leitura cv">
-                    <span class="rotulo">Saída (CV)</span>
-                    <span class="valor"><b id="roCv">0.0</b><small>%</small></span>
-                </div>
-            </div>
-
-            <div class="bloco">
-                <span class="bloco-titulo" id="t-modo">Modo de operação</span>
-                <div class="segmentado" role="radiogroup" aria-labelledby="t-modo">
-                    <button type="button" role="radio" id="btnAuto" aria-checked="true">Automático</button>
-                    <button type="button" role="radio" id="btnManual" aria-checked="false">Manual</button>
-                </div>
-                <label class="check">
-                    <input type="checkbox" id="chkSemImpacto" checked>
-                    Manter a saída atual ao passar para manual
-                </label>
-            </div>
-
-            <div class="bloco campo" id="campoSp">
-                <label for="inSp">Setpoint (%)</label>
-                <div class="linha">
-                    <input type="number" id="inSp" min="0" max="100" step="0.1" inputmode="decimal">
-                    <button type="button" id="btnSp" class="btn primario">Aplicar</button>
-                </div>
-                <p class="dica" id="hintSp"></p>
-                <p class="erro" id="erroSp" role="alert"></p>
-            </div>
-
-            <div class="bloco campo" id="campoCv">
-                <label for="inCv">Abertura manual da válvula (%)</label>
-                <input type="range" id="rgCv" min="0" max="100" step="0.5" aria-label="Abertura manual da válvula, controle deslizante">
-                <div class="linha">
-                    <input type="number" id="inCv" min="0" max="100" step="0.1" inputmode="decimal">
-                    <button type="button" id="btnCv" class="btn primario">Aplicar</button>
-                </div>
-                <p class="dica" id="hintCv"></p>
-                <p class="nota" id="notaCv">Disponível apenas no modo manual.</p>
-                <p class="erro" id="erroCv" role="alert"></p>
-            </div>
-
-            <details class="bloco sintonia" open>
-                <summary>Sintonia PID</summary>
-                <div class="grade-pid">
-                    <div class="campo" id="campoKp">
-                        <label for="inKp">Ganho proporcional (Kp)</label>
-                        <input type="number" id="inKp" min="0" step="0.1" inputmode="decimal">
-                        <p class="dica" id="hintKp"></p>
-                        <p class="erro" id="erroKp" role="alert"></p>
-                    </div>
-                    <div class="campo" id="campoTi">
-                        <label for="inTi">Tempo integral (Ti, s)</label>
-                        <input type="number" id="inTi" min="0" step="0.1" inputmode="decimal">
-                        <p class="dica" id="hintTi"></p>
-                        <p class="erro" id="erroTi" role="alert"></p>
-                    </div>
-                    <div class="campo" id="campoTd">
-                        <label for="inTd">Tempo derivativo (Td, s)</label>
-                        <input type="number" id="inTd" min="0" step="0.1" inputmode="decimal">
-                        <p class="dica" id="hintTd"></p>
-                        <p class="erro" id="erroTd" role="alert"></p>
-                    </div>
-                </div>
-                <button type="button" id="btnPid" class="btn primario largo">Aplicar sintonia</button>
-            </details>
         </aside>
 
-        <!-- Alarmes e eventos -->
-        <section class="painel eventos" aria-labelledby="t-ev">
-            <div class="painel-topo">
-                <h2 id="t-ev">Alarmes e eventos</h2>
-                <div class="ferramentas">
-                    <button type="button" id="btnReconhecer" class="btn">Reconhecer alarmes</button>
-                    <button type="button" id="btnLimpar" class="btn">Limpar histórico</button>
+        <div class="main">
+            <header class="topbar">
+                <h1 class="display" id="titulo-pagina" tabindex="-1">Visão Geral</h1>
+                <div class="status-strip" aria-label="Estado da conexão">
+                    <span class="tag" id="chip-conexao">Conectando…</span>
+                    <span class="sep" aria-hidden="true"></span>
+                    <span class="strip-item"><span class="eyebrow">Última leitura</span> <span class="num" id="ultima-leitura">—</span></span>
+                    <span class="sep" aria-hidden="true"></span>
+                    <span class="strip-item"><span class="eyebrow">Hora</span> <span class="num" id="relogio">--:--:--</span></span>
+                    <button type="button" class="btn small mobile-only" id="btn-tema-m" aria-label="Alternar tema claro e escuro">Tema</button>
                 </div>
+            </header>
+
+            <div id="faixa-alarme" class="faixa-alarme" role="alert" hidden>
+                <span id="faixa-texto"></span>
+                <button type="button" class="btn small" id="btn-reconhecer">Reconhecer</button>
             </div>
-            <div class="tabela-rolagem">
-                <table>
-                    <thead>
-                        <tr><th scope="col">Hora</th><th scope="col">Tipo</th><th scope="col">Descrição</th><th scope="col">Estado</th></tr>
-                    </thead>
-                    <tbody id="corpoEventos"></tbody>
-                </table>
-                <p id="eventosVazio" class="vazio">Nenhum evento desde que esta página foi aberta. Alarmes, comandos e falhas de comunicação aparecem aqui.</p>
-            </div>
-        </section>
 
-    </main>
+            <main id="conteudo" tabindex="-1">
+                <div id="view-root"></div>
+            </main>
 
-    <div id="avisos" class="avisos" aria-live="polite"></div>
+            <footer class="rodape">
+                <span>Projeto Integrador · ADS · malha de <strong class="mono">nível</strong> simulada (CLP Siemens / PLCSIM)</span>
+                <span id="rodape-versao" class="mono">v2</span>
+            </footer>
+        </div>
+    </div>
 
-    <script src="app.js"></script>
+    <div id="avisos" aria-live="polite"></div>
+    <div id="termo-pop" role="tooltip" hidden></div>
+
+    <dialog id="dlg-confirmar" aria-labelledby="dlg-titulo">
+        <div class="dlg-body">
+            <h2 class="title" id="dlg-titulo" data-t></h2>
+            <div class="note" data-c></div>
+        </div>
+        <div class="dlg-actions">
+            <button type="button" class="btn" data-no>Cancelar</button>
+            <button type="button" class="btn primary" data-ok>Confirmar</button>
+        </div>
+    </dialog>
+
+    <noscript><p style="padding:24px">Este aplicativo precisa de JavaScript.</p></noscript>
 </body>
 </html>
