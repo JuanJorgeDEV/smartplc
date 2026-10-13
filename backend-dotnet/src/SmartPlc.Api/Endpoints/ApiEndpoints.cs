@@ -32,6 +32,7 @@ public static class ApiEndpoints
         IOptions<IngestOptions> ingest,
         IOptions<ProcessOptions> process,
         IHistoryRecorder history,
+        CommandTracker comandos,
         TimeProvider clock,
         ILogger<Program> log,
         CancellationToken ct)
@@ -52,6 +53,9 @@ public static class ApiEndpoints
         var status = store.ApplyTelemetria(dados!);
         monitor.MarcarEnviado(status);
         await notifier.NotificarAsync(status, ct);
+        // O que o CLP reportou agora pode confirmar comandos pendentes (confirmação por releitura).
+        foreach (var c in comandos.AoTelemetria(status.Controle, status.Telemetria.Timestamp ?? clock.GetUtcNow()))
+            await notifier.NotificarComandoAsync(c, ct);
         history.RegistrarTelemetria(dados!, status.Telemetria.Timestamp ?? clock.GetUtcNow()); // não bloqueia nem lança
         return Results.Ok(new { status = "ok" });
     }
@@ -62,6 +66,7 @@ public static class ApiEndpoints
         ProcessStateStore store,
         ITelemetryNotifier notifier,
         INodeRedClient nodeRed,
+        CommandTracker comandos,
         IOptions<ControlOptions> control,
         ILogger<Program> log,
         CancellationToken ct)
@@ -79,31 +84,36 @@ public static class ApiEndpoints
         if (erros.Count > 0)
             return Results.BadRequest(ErroResponse.De("comando inválido", erros));
 
+        // O valor exibido como "no CLP" NÃO muda aqui: só a telemetria (lida do CLP) altera o controle.
+        var registro = comandos.Registrar(comando!, store.Snapshot().Controle);
+        await notifier.NotificarComandoAsync(registro, ct);
+
         var resultado = await nodeRed.EnviarComandoAsync(comando!, ct);
-        switch (resultado)
+        if (resultado == ResultadoEnvio.Aceito)
         {
-            case ResultadoEnvio.Aceito:
-                // Estado só muda DEPOIS que o Node-RED aceitou. A confirmação real vem na próxima telemetria.
-                var status = store.ApplyControle(comando!);
-                await notifier.NotificarAsync(status, ct);
-                log.LogInformation("Comando encaminhado ao Node-RED: {@Comando}", comando);
-                return Results.Ok(new
-                {
-                    status = "ok",
-                    controle = status.Controle,
-                    estadoComando = "encaminhado",
-                    confirmadoPeloClp = false
-                });
-
-            case ResultadoEnvio.Timeout:
-                return Results.Json(ErroResponse.De("Node-RED sem resposta (tempo esgotado)"), statusCode: StatusCodes.Status504GatewayTimeout);
-
-            case ResultadoEnvio.Recusado:
-                return Results.Json(ErroResponse.De("Node-RED não aceitou o comando"), statusCode: StatusCodes.Status502BadGateway);
-
-            default:
-                return Results.Json(ErroResponse.De("Node-RED inacessível"), statusCode: StatusCodes.Status502BadGateway);
+            var recebido = comandos.MarcarRecebido(registro.Id);
+            await notifier.NotificarComandoAsync(recebido, ct);
+            log.LogInformation("Comando {Id} recebido pelo Node-RED ({Estado}): {@Campos}", recebido.Id, recebido.Estado, recebido.Campos);
+            return Results.Ok(new
+            {
+                status = "ok",
+                comandoId = recebido.Id,
+                estadoComando = recebido.Estado,        // "recebido" (ou "confirmado" se a releitura já bastou)
+                confirmadoPeloClp = recebido.ConfirmadoPeloClp,
+                comando = recebido,
+                controle = store.Snapshot().Controle    // o que o CLP reportou, sem otimismo
+            });
         }
+
+        var (codigo, mensagem) = resultado switch
+        {
+            ResultadoEnvio.Timeout => (StatusCodes.Status504GatewayTimeout, "Node-RED sem resposta (tempo esgotado)"),
+            ResultadoEnvio.Recusado => (StatusCodes.Status502BadGateway, "Node-RED não aceitou o comando"),
+            _ => (StatusCodes.Status502BadGateway, "Node-RED inacessível")
+        };
+        var falhou = comandos.MarcarFalhou(registro.Id, mensagem);
+        await notifier.NotificarComandoAsync(falhou, ct);
+        return Results.Json(new { status = "erro", mensagem, comandoId = falhou.Id, estadoComando = falhou.Estado }, statusCode: codigo);
     }
 
     private static IResult PayloadGrande() =>

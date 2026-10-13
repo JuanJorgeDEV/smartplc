@@ -31,16 +31,6 @@ public sealed class ProcessStateStore(IOptions<ProcessOptions> process, IOptions
         }
     }
 
-    /// <summary>Aplica um comando JÁ VALIDADO e aceito pelo Node-RED. Não mexe na telemetria.</summary>
-    public StatusResponse ApplyControle(ControleRequest c)
-    {
-        lock (_lock)
-        {
-            _controle = Merge(_controle, c.Setpoint, c.ModoManual, c.ValvulaManual, c.Kp, c.Ti, c.Td);
-            return Build();
-        }
-    }
-
     public StatusResponse Snapshot()
     {
         lock (_lock) return Build();

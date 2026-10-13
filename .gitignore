@@ -4,3 +4,6 @@ obj/
 *.user
 appsettings.*.local.json
 .env
+
+# artefatos locais de ferramentas de teste
+.playwright-mcp/

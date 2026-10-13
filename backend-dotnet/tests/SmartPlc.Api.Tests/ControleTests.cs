@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Microsoft.Extensions.DependencyInjection;
 using SmartPlc.Api.Services;
 
 namespace SmartPlc.Api.Tests;
@@ -19,21 +20,82 @@ public class ControleTests
     }
 
     [Fact]
-    public async Task Comando_aceito_e_encaminhado_e_so_entao_o_estado_muda()
+    public async Task Comando_aceito_pelo_Node_RED_fica_recebido_e_o_valor_no_CLP_nao_muda()
     {
+        // Antes o backend mostrava o novo SP assim que o Node-RED respondia 200. Agora só a telemetria lida do CLP muda o controle.
         using var app = TestApp.ComControle();
         var r = await app.PostControle("""{"setpoint":42.5}""");
 
         Assert.Equal(HttpStatusCode.OK, r.StatusCode);
         var corpo = await r.Content.ReadFromJsonAsync<JsonElement>();
         Assert.Equal("ok", corpo.GetProperty("status").GetString());
-        Assert.Equal("encaminhado", corpo.GetProperty("estadoComando").GetString());
+        Assert.Equal("recebido", corpo.GetProperty("estadoComando").GetString());
         Assert.False(corpo.GetProperty("confirmadoPeloClp").GetBoolean()); // HTTP 200 != CLP executou
-        Assert.Equal(42.5, corpo.GetProperty("controle").GetProperty("setpoint").GetDouble());
+        Assert.True(Guid.TryParse(corpo.GetProperty("comandoId").GetString(), out _));
+        Assert.Equal(0, corpo.GetProperty("controle").GetProperty("setpoint").GetDouble()); // ainda o valor do CLP
 
         Assert.Equal(42.5, Assert.Single(app.NodeRed.Recebidos).Setpoint);
-        Assert.Equal(42.5, (await app.Status()).GetProperty("controle").GetProperty("setpoint").GetDouble());
-        Assert.Single(app.Notifier.Enviados);
+        Assert.Equal(0, (await app.Status()).GetProperty("controle").GetProperty("setpoint").GetDouble());
+        Assert.Empty(app.Notifier.Enviados);                                  // nenhum "estado" otimista foi difundido
+        Assert.Equal(["solicitado", "recebido"], app.Notifier.Comandos.Select(c => c.Estado));
+    }
+
+    [Fact]
+    public async Task Comando_so_vira_confirmado_quando_a_telemetria_traz_o_valor_pedido()
+    {
+        using var app = TestApp.ComControle();
+        await app.PostTelemetria("""{"nivel":50,"valvula":30,"setpoint":50,"modoManual":false,"valvulaManual":0,"kp":1,"ti":20,"td":0}""");
+        var r = await app.PostControle("""{"setpoint":70}""");
+        var id = (await r.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("comandoId").GetString();
+
+        // CLP ainda reporta o valor antigo: continua "recebido"
+        app.Clock.Advance(TimeSpan.FromSeconds(1));
+        await app.PostTelemetria("""{"nivel":51,"valvula":35,"setpoint":50,"modoManual":false,"valvulaManual":0,"kp":1,"ti":20,"td":0}""");
+        Assert.Equal("recebido", (await Comando(app, id!)).GetProperty("estado").GetString());
+
+        // CLP reporta o novo valor: confirmado
+        app.Clock.Advance(TimeSpan.FromSeconds(1));
+        await app.PostTelemetria("""{"nivel":52,"valvula":40,"setpoint":70,"modoManual":false,"valvulaManual":0,"kp":1,"ti":20,"td":0}""");
+        var c = await Comando(app, id!);
+        Assert.Equal("confirmado", c.GetProperty("estado").GetString());
+        Assert.True(c.GetProperty("confirmadoPeloClp").GetBoolean());
+        Assert.Equal("confirmado", app.Notifier.Comandos[^1].Estado);
+        Assert.Equal(70, (await app.Status()).GetProperty("controle").GetProperty("setpoint").GetDouble());
+    }
+
+    [Fact]
+    public async Task Comando_sem_confirmacao_no_prazo_expira_e_o_dashboard_e_avisado()
+    {
+        using var app = TestApp.ComControle();
+        var monitor = app.Services.GetRequiredService<SmartPlc.Api.Services.StalenessMonitor>();
+        await app.PostTelemetria("""{"nivel":50,"valvula":30,"setpoint":50}""");
+        var id = (await (await app.PostControle("""{"setpoint":80}""")).Content.ReadFromJsonAsync<JsonElement>()).GetProperty("comandoId").GetString();
+
+        app.Clock.Advance(TimeSpan.FromSeconds(9));
+        await monitor.VerificarAsync();
+        Assert.Equal("recebido", (await Comando(app, id!)).GetProperty("estado").GetString());
+
+        app.Clock.Advance(TimeSpan.FromSeconds(2)); // passou de 10 s
+        await monitor.VerificarAsync();
+        var c = await Comando(app, id!);
+        Assert.Equal("expirado", c.GetProperty("estado").GetString());
+        Assert.False(c.GetProperty("confirmadoPeloClp").GetBoolean());
+        Assert.Equal("expirado", app.Notifier.Comandos[^1].Estado);
+    }
+
+    private static async Task<JsonElement> Comando(TestApp app, string id) =>
+        await app.CreateClient().GetFromJsonAsync<JsonElement>($"/api/comandos/{id}");
+
+    [Fact]
+    public async Task Lista_de_comandos_recentes_e_consulta_de_id_inexistente()
+    {
+        using var app = TestApp.ComControle();
+        await app.PostControle("""{"setpoint":10}""");
+        await app.PostControle("""{"kp":2}""");
+        var lista = await app.CreateClient().GetFromJsonAsync<JsonElement>("/api/comandos?limite=5");
+        Assert.Equal(2, lista.GetProperty("comandos").GetArrayLength());
+        Assert.Equal(HttpStatusCode.NotFound, (await app.CreateClient().GetAsync($"/api/comandos/{Guid.NewGuid()}")).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await app.CreateClient().GetAsync("/api/comandos?limite=0")).StatusCode);
     }
 
     [Theory]
@@ -52,6 +114,7 @@ public class ControleTests
         Assert.Equal("erro", (await r.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("status").GetString());
         Assert.Equal(0, (await app.Status()).GetProperty("controle").GetProperty("setpoint").GetDouble());
         Assert.Empty(app.Notifier.Enviados);
+        Assert.Equal("falhou", app.Notifier.Comandos[^1].Estado);
     }
 
     [Theory]
@@ -92,7 +155,7 @@ public class ControleTests
     }
 
     [Fact]
-    public async Task Pid_e_modo_manual_com_valvula_sao_encaminhados_juntos()
+    public async Task Pid_e_modo_manual_com_valvula_sao_encaminhados_juntos_e_confirmados_juntos()
     {
         using var app = TestApp.ComControle();
         var r = await app.PostControle("""{"modoManual":true,"valvulaManual":33,"kp":2.5,"ti":12,"td":1}""");
@@ -102,9 +165,15 @@ public class ControleTests
         Assert.True(enviado.ModoManual);
         Assert.Equal(33, enviado.ValvulaManual);
         Assert.Equal(2.5, enviado.Kp);
-        var c = (await app.Status()).GetProperty("controle");
-        Assert.True(c.GetProperty("modoManual").GetBoolean());
-        Assert.Equal(12, c.GetProperty("ti").GetDouble());
+        Assert.False((await app.Status()).GetProperty("controle").GetProperty("modoManual").GetBoolean()); // sem otimismo
+
+        // Só parte dos campos chegou ao CLP: não confirma
+        await app.PostTelemetria("""{"nivel":50,"valvula":33,"setpoint":50,"modoManual":true,"valvulaManual":33,"kp":1,"ti":20,"td":0}""");
+        Assert.Equal("recebido", app.Notifier.Comandos[^1].Estado);
+
+        // Todos chegaram
+        await app.PostTelemetria("""{"nivel":50,"valvula":33,"setpoint":50,"modoManual":true,"valvulaManual":33,"kp":2.5,"ti":12,"td":1}""");
+        Assert.Equal("confirmado", app.Notifier.Comandos[^1].Estado);
     }
 
     [Fact]

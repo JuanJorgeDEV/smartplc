@@ -7,6 +7,7 @@ public sealed class SmartPlcDbContext(DbContextOptions<SmartPlcDbContext> option
     public DbSet<TelemetrySample> TelemetrySamples => Set<TelemetrySample>();
     public DbSet<ProcessEvent> ProcessEvents => Set<ProcessEvent>();
     public DbSet<ControlCommand> ControlCommands => Set<ControlCommand>();
+    public DbSet<ExperimentSession> ExperimentSessions => Set<ExperimentSession>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -41,6 +42,19 @@ public sealed class SmartPlcDbContext(DbContextOptions<SmartPlcDbContext> option
             e.Property(x => x.Campos).HasColumnType("jsonb");
             e.Property(x => x.Detalhe).HasMaxLength(500);
             e.HasIndex(x => x.SolicitadoEm);
+        });
+
+        b.Entity<ExperimentSession>(e =>
+        {
+            e.ToTable("experiment_sessions");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Nome).HasMaxLength(80);
+            e.Property(x => x.Tipo).HasMaxLength(30);
+            e.Property(x => x.Status).HasMaxLength(20);
+            e.Property(x => x.Observacoes).HasMaxLength(500);
+            e.HasIndex(x => x.InicioEm);
+            // Garante, no banco, no máximo UMA sessão ativa (também protege contra duas requisições simultâneas).
+            e.HasIndex(x => x.Status).IsUnique().HasFilter("\"Status\" = 'ativa'");
         });
     }
 }

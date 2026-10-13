@@ -9,6 +9,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Time.Testing;
 using SmartPlc.Api.Contracts;
 using SmartPlc.Api.History;
+using SmartPlc.Api.Lab;
 using SmartPlc.Api.Services;
 
 namespace SmartPlc.Api.Tests;
@@ -28,10 +29,17 @@ public sealed class FakeNodeRedClient : INodeRedClient
 public sealed class RecordingNotifier : ITelemetryNotifier
 {
     public List<StatusResponse> Enviados { get; } = [];
+    public List<CommandDto> Comandos { get; } = [];
 
     public Task NotificarAsync(StatusResponse status, CancellationToken ct = default)
     {
         Enviados.Add(status);
+        return Task.CompletedTask;
+    }
+
+    public Task NotificarComandoAsync(CommandDto comando, CancellationToken ct = default)
+    {
+        Comandos.Add(comando);
         return Task.CompletedTask;
     }
 }
@@ -45,13 +53,15 @@ public sealed class TestApp : WebApplicationFactory<Program>
     private readonly Dictionary<string, string?> _config;
     private readonly bool _notifierReal;
     private readonly IHistoryStore? _historyStore;
+    private readonly IExperimentStore? _experimentStore;
 
     public FakeTimeProvider Clock { get; } = new(DateTimeOffset.Parse("2026-01-01T12:00:00Z"));
     public FakeNodeRedClient NodeRed { get; } = new();
     public RecordingNotifier Notifier { get; } = new();
 
-    public TestApp(Dictionary<string, string?>? config = null, bool notifierReal = false, IHistoryStore? historyStore = null)
+    public TestApp(Dictionary<string, string?>? config = null, bool notifierReal = false, IHistoryStore? historyStore = null, IExperimentStore? experimentStore = null)
     {
+        _experimentStore = experimentStore;
         _config = config ?? [];
         _notifierReal = notifierReal;
         _historyStore = historyStore;
@@ -63,6 +73,14 @@ public sealed class TestApp : WebApplicationFactory<Program>
         var cfg = new Dictionary<string, string?> { ["History:RetryDelayMilliseconds"] = "0" };
         foreach (var (k, v) in extra ?? []) cfg[k] = v;
         return new TestApp(cfg, historyStore: store);
+    }
+
+    /// <summary>Histórico e Laboratório ligados, ambos em memória.</summary>
+    public static TestApp ComLaboratorio(IHistoryStore historico, IExperimentStore experimentos, Dictionary<string, string?>? extra = null)
+    {
+        var cfg = new Dictionary<string, string?> { ["History:RetryDelayMilliseconds"] = "0" };
+        foreach (var (k, v) in extra ?? []) cfg[k] = v;
+        return new TestApp(cfg, historyStore: historico, experimentStore: experimentos);
     }
 
     public HistoryPipeline Pipeline => Services.GetRequiredService<HistoryPipeline>();
@@ -97,6 +115,12 @@ public sealed class TestApp : WebApplicationFactory<Program>
             {
                 s.RemoveAll<IHistoryStore>();
                 s.AddSingleton(_historyStore);
+            }
+
+            if (_experimentStore is not null)
+            {
+                s.RemoveAll<IExperimentStore>();
+                s.AddSingleton(_experimentStore);
             }
 
             s.RemoveAll<IHostedService>();

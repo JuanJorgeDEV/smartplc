@@ -75,3 +75,34 @@ public sealed class ControlCommand
     public string Campos { get; set; } = "{}";
     public string? Detalhe { get; set; }
 }
+
+/// <summary>
+/// Sessão do Laboratório SmartPLC. Guarda só o enquadramento (quando, o quê, valores de partida e de chegada).
+/// A telemetria da sessão NÃO é copiada: consulta-se telemetry_samples e process_events pela janela InicioEm..FimEm
+/// (há um único processo simulado). Os campos *Inicial/*Final vêm do estado que o servidor recebeu do CLP, não do navegador.
+/// </summary>
+public sealed class ExperimentSession
+{
+    public Guid Id { get; set; }
+    public string Nome { get; set; } = "";
+    /// <summary>respostaSetpoint | automaticoManual</summary>
+    public string Tipo { get; set; } = "";
+    /// <summary>ativa | encerrada | cancelada. No máximo uma sessão ativa (índice único parcial).</summary>
+    public string Status { get; set; } = "";
+    public DateTimeOffset InicioEm { get; set; }
+    public DateTimeOffset? FimEm { get; set; }
+
+    /// <summary>Estado da comunicação no início (exigido online para iniciar; guardado como evidência).</summary>
+    public bool PlcOnlineInicial { get; set; }
+    public double? NivelInicial { get; set; }
+    public double? SetpointInicial { get; set; }
+    public double? ValvulaInicial { get; set; }
+    public bool? ModoManualInicial { get; set; }
+
+    public double? NivelFinal { get; set; }
+    public double? SetpointFinal { get; set; }
+    public double? ValvulaFinal { get; set; }
+    public bool? ModoManualFinal { get; set; }
+
+    public string? Observacoes { get; set; }
+}

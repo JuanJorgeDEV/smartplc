@@ -74,7 +74,35 @@ public class SignalRTests
     }
 
     [Fact]
-    public async Task Comando_aceito_pelo_Node_RED_e_difundido_aos_dashboards()
+    public async Task Mudanca_de_estado_de_comando_e_difundida_no_evento_comando_update()
+    {
+        using var app = new TestApp(new() { ["Control:Enabled"] = "true" }, notifierReal: true);
+        var canal = Channel.CreateUnbounded<JsonElement>();
+        var hub = new HubConnectionBuilder()
+            .WithUrl(new Uri(app.Server.BaseAddress, "/hubs/telemetria"), o =>
+            {
+                o.HttpMessageHandlerFactory = _ => app.Server.CreateHandler();
+                o.Transports = HttpTransportType.LongPolling;
+            }).Build();
+        hub.On<JsonElement>("comando_update", m => canal.Writer.TryWrite(m));
+        await hub.StartAsync();
+        await using var _ = hub;
+
+        await app.PostControle("""{"setpoint":33}""");
+
+        var estados = new List<string>();
+        for (var i = 0; i < 2; i++)
+        {
+            var msg = await Receber(canal);
+            Assert.NotNull(msg);
+            estados.Add(msg!.Value.GetProperty("estado").GetString()!);
+            Assert.Equal(33, msg.Value.GetProperty("campos").GetProperty("setpoint").GetDouble());
+        }
+        Assert.Equal(["solicitado", "recebido"], estados);
+    }
+
+    [Fact]
+    public async Task Comando_aceito_nao_difunde_um_novo_controle_otimista_em_telemetria_update()
     {
         using var app = new TestApp(new() { ["Control:Enabled"] = "true" }, notifierReal: true);
         var (hub, canal) = await Conectar(app);
@@ -82,8 +110,7 @@ public class SignalRTests
 
         await app.PostControle("""{"setpoint":33}""");
 
-        var msg = await Receber(canal);
-        Assert.Equal(33, msg!.Value.GetProperty("controle").GetProperty("setpoint").GetDouble());
+        Assert.Null(await Receber(canal, 500)); // só telemetria real gera telemetria_update
     }
 
     [Fact]

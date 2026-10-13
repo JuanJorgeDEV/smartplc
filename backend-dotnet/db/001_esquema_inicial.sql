@@ -90,3 +90,53 @@ BEGIN
 END $EF$;
 COMMIT;
 
+START TRANSACTION;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20261013021846_AddExperimentSessions') THEN
+    CREATE TABLE experiment_sessions (
+        "Id" uuid NOT NULL,
+        "Nome" character varying(80) NOT NULL,
+        "Tipo" character varying(30) NOT NULL,
+        "Status" character varying(20) NOT NULL,
+        "InicioEm" timestamp with time zone NOT NULL,
+        "FimEm" timestamp with time zone,
+        "PlcOnlineInicial" boolean NOT NULL,
+        "NivelInicial" double precision,
+        "SetpointInicial" double precision,
+        "ValvulaInicial" double precision,
+        "ModoManualInicial" boolean,
+        "NivelFinal" double precision,
+        "SetpointFinal" double precision,
+        "ValvulaFinal" double precision,
+        "ModoManualFinal" boolean,
+        "Observacoes" character varying(500),
+        CONSTRAINT "PK_experiment_sessions" PRIMARY KEY ("Id")
+    );
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20261013021846_AddExperimentSessions') THEN
+    CREATE INDEX "IX_experiment_sessions_InicioEm" ON experiment_sessions ("InicioEm");
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20261013021846_AddExperimentSessions') THEN
+    CREATE UNIQUE INDEX "IX_experiment_sessions_Status" ON experiment_sessions ("Status") WHERE "Status" = 'ativa';
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20261013021846_AddExperimentSessions') THEN
+    INSERT INTO "__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+    VALUES ('20261013021846_AddExperimentSessions', '10.0.12');
+    END IF;
+END $EF$;
+COMMIT;
+

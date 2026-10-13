@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using SmartPlc.Api.Endpoints;
 using SmartPlc.Api.History;
+using SmartPlc.Api.Lab;
 using SmartPlc.Api.Persistence;
 using SmartPlc.Api.Options;
 using SmartPlc.Api.Services;
@@ -28,6 +29,10 @@ if (!string.IsNullOrEmpty(portaPaas)
 builder.WebHost.ConfigureKestrel(k => k.Limits.MaxRequestBodySize = 16 * 1024);
 
 builder.Services.Configure<HistoryOptions>(cfg.GetSection(HistoryOptions.Section));
+builder.Services.Configure<CommandOptions>(cfg.GetSection(CommandOptions.Section));
+builder.Services.Configure<LabOptions>(cfg.GetSection(LabOptions.Section));
+builder.Services.Configure<IntegrationOptions>(cfg.GetSection(IntegrationOptions.Section));
+builder.Services.AddSingleton<CommandTracker>();
 
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<ProcessStateStore>();
@@ -45,10 +50,12 @@ if (connectionString is not null)
 {
     builder.Services.AddDbContextFactory<SmartPlcDbContext>(o => o.UseNpgsql(connectionString));
     builder.Services.AddSingleton<IHistoryStore, EfHistoryStore>();
+    builder.Services.AddSingleton<IExperimentStore, EfExperimentStore>();
 }
 else
 {
     builder.Services.AddSingleton<IHistoryStore, DisabledHistoryStore>();
+    builder.Services.AddSingleton<IExperimentStore, DisabledExperimentStore>();
 }
 builder.Services.AddSingleton<HistoryPipeline>();
 builder.Services.AddSingleton<IHistoryRecorder>(sp => sp.GetRequiredService<HistoryPipeline>());
@@ -106,6 +113,8 @@ app.UseDefaultFiles();
 app.UseStaticFiles();
 app.MapSmartPlcApi();
 app.MapHistoryApi();
+app.MapConfigApi();
+app.MapLabApi();
 
 app.Run();
 

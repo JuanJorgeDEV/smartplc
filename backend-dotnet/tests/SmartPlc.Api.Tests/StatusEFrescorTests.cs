@@ -144,6 +144,37 @@ public class StatusEFrescorTests
     {
         using var app = new TestApp();
         var html = await app.CreateClient().GetStringAsync("/");
-        Assert.Contains("Tanque TQ-101", html);
+        Assert.Contains("SmartPLC", html);
+        Assert.Contains("id=\"view-root\"", html);
+        foreach (var rota in new[] { "#/visao-geral", "#/controle", "#/historico", "#/laboratorio", "#/integracoes" })
+            Assert.Contains($"href=\"{rota}\"", html);          // as 5 seções existem na navegação
+    }
+
+    [Theory]
+    [InlineData("/js/main.js", "text/javascript")]
+    [InlineData("/js/views/lab.js", "text/javascript")]
+    [InlineData("/css/app.css", "text/css")]
+    [InlineData("/css/tokens.css", "text/css")]
+    [InlineData("/fonts/space-grotesk-500.woff2", "font/woff2")]
+    public async Task Recursos_do_frontend_sao_servidos_com_o_tipo_certo(string caminho, string tipo)
+    {
+        using var app = new TestApp();
+        var r = await app.CreateClient().GetAsync(caminho);
+        Assert.Equal(HttpStatusCode.OK, r.StatusCode);
+        Assert.Contains(tipo.Replace("text/javascript", "javascript"), r.Content.Headers.ContentType?.MediaType);
+    }
+
+    [Fact]
+    public async Task Frontend_nao_embute_chaves_nem_segredos()
+    {
+        using var app = new TestApp(new() { ["Ingest:ApiKey"] = "SEGREDO-X", ["Control:OperatorApiKey"] = "SEGREDO-Y" });
+        var c = app.CreateClient();
+        foreach (var arq in new[] { "/", "/js/main.js", "/js/api.js", "/js/views/control.js", "/js/store.js" })
+        {
+            var corpo = await c.GetStringAsync(arq);
+            Assert.DoesNotContain("SEGREDO", corpo);
+            Assert.DoesNotContain("X-Operator-Key", corpo);       // o painel nunca manda nem guarda chave de operador
+            Assert.DoesNotContain("X-Api-Key", corpo);
+        }
     }
 }

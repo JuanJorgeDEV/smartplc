@@ -1,4 +1,5 @@
 using SmartPlc.Api.History;
+using SmartPlc.Api.Lab;
 using SmartPlc.Api.Persistence;
 
 namespace SmartPlc.Api.Tests;
@@ -80,4 +81,60 @@ public sealed class PostgresFactAttribute : FactAttribute
         if (string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable(Variavel)))
             Skip = $"defina {Variavel} com a connection string de um PostgreSQL de teste (banco com 'test' no nome)";
     }
+}
+
+/// <summary>Armazenamento de sessões em memória, com a mesma regra de "uma única ativa" do índice parcial do banco.</summary>
+public sealed class InMemoryExperimentStore : IExperimentStore
+{
+    public bool Habilitado { get; set; } = true;
+    public bool FalharSempre { get; set; }
+    public List<ExperimentSession> Sessoes { get; } = [];
+
+    private void Checar() { if (FalharSempre) throw new InvalidOperationException("banco indisponível (simulado)"); }
+
+    public Task CriarAsync(ExperimentSession s, CancellationToken ct)
+    {
+        Checar();
+        if (Sessoes.FirstOrDefault(x => x.Status == ExperimentStatuses.Ativa) is { } ativa && s.Status == ExperimentStatuses.Ativa)
+            throw new ExperimentConflictException("já existe uma sessão ativa", ativa.Id);
+        Sessoes.Add(Copia(s));
+        return Task.CompletedTask;
+    }
+
+    public Task<ExperimentSession?> ObterAsync(Guid id, CancellationToken ct)
+    {
+        Checar();
+        return Task.FromResult(Sessoes.FirstOrDefault(x => x.Id == id) is { } s ? Copia(s) : null);
+    }
+
+    public Task<ExperimentSession?> ObterAtivaAsync(CancellationToken ct)
+    {
+        Checar();
+        return Task.FromResult(Sessoes.FirstOrDefault(x => x.Status == ExperimentStatuses.Ativa) is { } s ? Copia(s) : null);
+    }
+
+    public Task<IReadOnlyList<ExperimentSession>> ListarAsync(int limite, string? status, CancellationToken ct)
+    {
+        Checar();
+        IReadOnlyList<ExperimentSession> r = Sessoes.Where(x => status is null || x.Status == status)
+            .OrderByDescending(x => x.InicioEm).Take(limite).Select(Copia).ToList();
+        return Task.FromResult(r);
+    }
+
+    public Task AtualizarAsync(ExperimentSession s, CancellationToken ct)
+    {
+        Checar();
+        var i = Sessoes.FindIndex(x => x.Id == s.Id);
+        if (i < 0) throw new InvalidOperationException("sessão inexistente");
+        Sessoes[i] = Copia(s);
+        return Task.CompletedTask;
+    }
+
+    private static ExperimentSession Copia(ExperimentSession s) => new()
+    {
+        Id = s.Id, Nome = s.Nome, Tipo = s.Tipo, Status = s.Status, InicioEm = s.InicioEm, FimEm = s.FimEm,
+        PlcOnlineInicial = s.PlcOnlineInicial, NivelInicial = s.NivelInicial, SetpointInicial = s.SetpointInicial,
+        ValvulaInicial = s.ValvulaInicial, ModoManualInicial = s.ModoManualInicial, NivelFinal = s.NivelFinal,
+        SetpointFinal = s.SetpointFinal, ValvulaFinal = s.ValvulaFinal, ModoManualFinal = s.ModoManualFinal, Observacoes = s.Observacoes
+    };
 }

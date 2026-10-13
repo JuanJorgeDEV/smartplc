@@ -1,4 +1,4 @@
-# SmartPLC: backend ASP.NET Core (Marcos 2 e 4)
+# SmartPLC: backend ASP.NET Core (Marcos 2, 4 e V2)
 
 Substituto do backend Express (`../server.js`), que continua intacto para comparação e rollback.
 Marco 2: contratos HTTP, validação, SignalR e testes. Marco 4: histórico em PostgreSQL (Supabase) com política de gravação inteligente. **Sem** fila de comandos em nuvem; **sem** deploy realizado.
@@ -52,9 +52,16 @@ BASE_URL=http://localhost:5000 node --test tests/contract/baseline.test.js   # m
 | `History:RecordEvents` | true | Registra alarmes, comunicação, SP, modo e PID |
 | `History:MigrateOnStartup` | false | Aplica migrations ao iniciar (só se você pedir) |
 | `History:Retention:*` | desligado | Plano B da retenção; o caminho preferido é `db/retencao-pg_cron.sql` |
+| `Command:ConfirmationSeconds` | 10 | Prazo para o CLP reportar o valor de um comando antes de "expirado" |
+| `Lab:Enabled` / `Lab:WriteEnabled` | true / true | Laboratório (exige o histórico) e criação/encerramento de sessões |
+| `Integration:ShowAddresses` | true | Mostra os endereços S7 no catálogo de variáveis |
 | `Cors:AllowedOrigins` | `[]` | Origens externas liberadas (o dashboard usa mesma origem) |
 
 Fora de Development a aplicação **não inicia** sem `Ingest:ApiKey`.
+
+## Telas (frontend V2)
+
+`#/visao-geral`, `#/controle`, `#/historico`, `#/laboratorio`, `#/integracoes`. Guia: [docs/frontend-v2.md](../docs/frontend-v2.md). Contratos: [docs/contratos-api.md](../docs/contratos-api.md). Laboratório: [docs/laboratorio.md](../docs/laboratorio.md).
 
 ## Estrutura
 ```
