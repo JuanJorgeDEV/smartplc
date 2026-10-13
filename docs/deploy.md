@@ -76,6 +76,9 @@ Backups e limites dependem do plano (conferir no painel). O navegador **nunca** 
 | `Control__Enabled` | `false` (mantenha: controle remoto desligado na nuvem) |
 | `Cors__AllowedOrigins__0` | só se o dashboard for servido de outra origem |
 | `History__SampleIntervalSeconds`, `History__MinimumLevelChange` | opcionais |
+| `Lab__WriteEnabled` | **`false` enquanto não houver autenticação** (criar/encerrar sessões grava no banco; o CLP não é tocado) |
+| `Integration__ShowAddresses` | `false` se não quiser divulgar os endereços S7 na aba Integrações |
+| `Command__ConfirmationSeconds` | opcional (padrão 10) |
 
 - **Plano gratuito (conferido):** hiberna após 15 min sem tráfego de entrada (requisições HTTP e mensagens em WebSocket já abertas contam como atividade); retoma em ~1 min no próximo acesso; 750 h/mês por workspace; pode ser reiniciado a qualquer momento; sem disco persistente (por isso o histórico fica no Supabase). Telemetria do Node-RED a cada poucos segundos mantém o serviço acordado, mas não garante ausência de reinícios.
 - **Rollback:** Render → Deploys → *Rollback* para um deploy anterior; o esquema do banco só avança por migrations (ao reverter o código, confirme que a versão antiga é compatível com o esquema).
@@ -95,3 +98,11 @@ O Node-RED local envia `POST https://<app>.onrender.com/api/telemetria` com o ca
 | Migrations em PostgreSQL 17 local (contêiner) | **aplicadas e testadas** |
 | Migrations no Supabase | **não aplicadas** (aguardam sua autorização) |
 | Deploy no Render | **não realizado** |
+
+
+## Checklist para a publicação (V2) — nada disto foi executado
+
+**Supabase** (nesta ordem, no SQL Editor): `db/001_esquema_inicial.sql` (agora inclui `experiment_sessions`), `db/002_seguranca_rls.sql` (RLS nas 5 tabelas), `db/retencao-pg_cron.sql`. Conferir o `rls_ativo` e o teste da chave anon descritos no próprio script.
+**Render:** Web Service Docker (`backend-dotnet/Dockerfile`), health check `/health`, variáveis da tabela acima, `Control__Enabled=false`, `Lab__WriteEnabled=false`, `Ingest__ApiKey` forte. O frontend vai junto (é `wwwroot`).
+**Node-RED local:** `SMARTPLC_URL=https://<app>.onrender.com/api/telemetria` e `SMARTPLC_API_KEY` (fluxo `node-red/flows.smartplc-dotnet.json`).
+**Atenção:** o painel não tem login. Com `Control__Enabled=false` e `Lab__WriteEnabled=false` ele é somente leitura para quem abrir a URL; qualquer um que a conheça verá a telemetria e o histórico. Se isso não for aceitável, decida a autenticação antes de publicar.

@@ -46,3 +46,9 @@ Escolher A ou B depende das respostas 5 e 6 de `integracao-node-red.md`. Nada di
 - O `/api/comando-clp` responde `{"status":"sucesso"}` em paralelo com as escritas `s7 out`, sem esperar o CLP. Portanto o 200 do Node-RED prova apenas **recebido** (e, no máximo, "despachado para o nó S7"), nunca **confirmado**. `encaminhado` de verdade (escrita concluída) exigiria o nível B.
 - Há um defeito provável na resposta HTTP do fluxo original (msg nova sem `msg.res`). A cópia `node-red/flows.smartplc-dotnet.json` o corrige; detalhes em `docs/integracao-node-red.md`.
 - Recomendação: implementar o nível A (estados `solicitado → recebido → confirmado | expirado`) e adiar o B.
+
+## Atualização (13/10/2026): nível A implementado
+
+`Services/CommandTracker.cs`. Estados: `solicitado → recebido → confirmado`, mais `falhou`, `expirado` (10 s, configurável) e `substituido`. `POST /api/controle` **não** altera mais o valor "no CLP": só a telemetria o faz. Detalhes e rotas em `docs/contratos-api.md`.
+Ajuste em relação ao texto acima: a confirmação de `valvulaManual` compara o **valor** lido do CLP, sem exigir modo manual (o valor existe no CLP em qualquer modo). Continua valendo o limite do método: se o CLP já reportava o valor pedido, a releitura não prova que houve escrita (o detalhe do comando avisa).
+Não implementado: o nível B (resposta do Node-RED depois da escrita) e a persistência dos comandos na tabela `control_commands`.

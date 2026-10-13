@@ -41,17 +41,42 @@ dotnet test --filter "FullyQualifiedName~PostgresIntegration"
 
 Os testes com armazenamento em memória validam a **lógica**; só os de PostgreSQL validam o comportamento do banco. Os payloads são controlados — nenhum deles é evidência de integração com o PLCSIM.
 
-## Estado da última execução (08/10/2026)
+## Estado da última execução (13/10/2026)
 
 | Conjunto | Resultado |
 |---|---|
-| xUnit completo (Marco 2 + Marco 4) com PostgreSQL 17.11 em contêiner | **224 aprovados, 0 falhas, 0 ignorados** |
-| dos quais, PostgreSQL real (17) | aprovados: migration aplicada do zero, índices, UTC, atomicidade, duplicata, paginação, retenção em lotes, conexão indisponível, ponta a ponta API→PostgreSQL→`/api/historico` |
-| Sincronia modelo × migrations (`MigrationSnapshotTests`) | aprovado (equivale a `has-pending-model-changes`) |
-| Express, contrato (12) | passou no Marco 3; não foi alterado desde então |
+| xUnit completo, com PostgreSQL 17.11 em contêiner (`smartplc_test`) | **327 aprovados, 0 falhas, 0 ignorados** |
+| Frontend, unitários (`tests/frontend/unit.test.mjs`) | **24 aprovados** |
+| Frontend, ponta a ponta em Chrome real (`tests/ui/e2e.test.mjs`) | **14 aprovados** (navegação, tanque × telemetria, tema, controle com confirmação, histórico, laboratório completo, integrações e preferências, rolagem horizontal em 4 larguras, acessibilidade básica, console limpo) |
+| Fluxo do Node-RED, código dos nós (`tests/node-red/flow.test.js`) | **16 aprovados** |
+| Express, contrato (`tests/contract/baseline.test.js`) | 12 aprovados (arquivos do Express não foram alterados) |
 
-Ambiente da execução: PostgreSQL 17.11 (imagem oficial `postgres:17`, contêiner `smartplc-pg-test`, porta 5433 só em localhost), banco `smartplc_test`. **Não** foi o Supabase.
+**Importante:** os testes de interface e as capturas usaram o **simulador do Node-RED** como fonte da telemetria e dos comandos. Eles provam a aplicação, não a integração com o PLCSIM.
 
-Observação sobre o Smart App Control: um binário recém-compilado costuma ser bloqueado (`0x800711C7`) por alguns minutos e depois liberado. Se `dotnet test` falhar com "Uma política de Controle de Aplicativo bloqueou este arquivo", repita `dotnet test --no-build` depois de alguns minutos (sem recompilar).
+## Como rodar os testes de interface
 
-Docker Desktop 4.63 não iniciava (sockets Unix obsoletos que o Windows não deixava apagar). Solução usada: renomear `%LOCALAPPDATA%\Docker\run` e `%LOCALAPPDATA%\docker-secrets-engine` (o Docker recria). As pastas antigas ficaram como `*.stale-20261008` e podem ser apagadas depois de reiniciar o Windows.
+Pré-requisitos: backend com `Control__Enabled=true` e `ConnectionStrings__SmartPlc` (PostgreSQL de teste), e telemetria chegando.
+
+```bash
+docker run --name smartplc-pg-test -e POSTGRES_PASSWORD=teste -p 127.0.0.1:5433:5432 -d postgres:17
+# PowerShell (backend):
+$env:ASPNETCORE_ENVIRONMENT="Development"; $env:Control__Enabled="true"; $env:History__MigrateOnStartup="true"
+$env:ConnectionStrings__SmartPlc="Host=localhost;Port=5433;Username=postgres;Password=teste;Database=smartplc_dev"
+dotnet run --project backend-dotnet/src/SmartPlc.Api --urls http://localhost:5000
+node tools/simulador-nodered.js --backend=http://localhost:5000          # fonte de telemetria (NÃO é o PLCSIM)
+node --test tests/ui/e2e.test.mjs                                        # cria 1 experimento e envia setpoints ao "CLP"
+node --test tests/frontend/unit.test.mjs
+```
+
+O teste ponta a ponta envia comandos de setpoint a quem estiver respondendo como CLP: com o simulador é inofensivo; **não o aponte para o PLCSIM/CLP real sem querer**.
+
+## Cobertura nova do Marco V2
+
+| Arquivo | Foco |
+|---|---|
+| `CommandTrackerTests`, `ControleTests`, `SignalRTests` | Estados do comando, confirmação por releitura (tolerâncias, todos os campos, eco antes do 200, expiração, substituição), nenhum estado otimista, evento `comando_update` |
+| `ConfigEndpointTests` | `/api/config` sem segredos nem IPs, catálogo das 8 variáveis com os endereços do fluxo, ocultar endereços |
+| `ExperimentAnalyzerTests` | Métricas contra soluções analíticas e todos os casos de "não calcular" |
+| `ExperimentEndpointTests` | Iniciar/encerrar/cancelar, uma sessão ativa, valores do servidor, sem telemetria, falha do banco, escrita desligada, recuperação após reinício, ponta a ponta com a política real |
+| `PostgresExperimentTests` | Migration, índice único parcial, concorrência (6 criações simultâneas ⇒ 1), ordenação, ponta a ponta no PostgreSQL |
+| `StatusEFrescorTests` | Arquivos estáticos e tipos, e que o frontend não embute chaves |
