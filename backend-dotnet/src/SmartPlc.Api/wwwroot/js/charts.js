@@ -17,7 +17,7 @@ const marcadores = {
         const { ctx, chartArea, scales } = chart;
         const c = cores();
         ctx.save();
-        ctx.font = '10px "IBM Plex Mono", monospace';
+        ctx.font = '12px "IBM Plex Mono", monospace';
         for (const it of itens) {
             const x = scales.x.getPixelForValue(it.x);
             if (x < chartArea.left || x > chartArea.right) continue;
@@ -30,7 +30,7 @@ const marcadores = {
                 ctx.fillStyle = ctx.strokeStyle;
                 const largura = ctx.measureText(it.rotulo).width;
                 const xt = x + 4 + largura > chartArea.right ? x - 4 - largura : x + 4;
-                ctx.fillText(it.rotulo, xt, chartArea.top + 11 + (it.linha ?? 0) * 12);
+                ctx.fillText(it.rotulo, xt, chartArea.top + 13 + (it.linha ?? 0) * 14);
             }
         }
         ctx.restore();
@@ -46,7 +46,7 @@ export function criarTendencia(canvas, { cv = false, ariaLabel = 'Gráfico de te
     if (typeof Chart === 'undefined') return null;
     registrar();
     Chart.defaults.font.family = '"IBM Plex Mono", ui-monospace, monospace';
-    Chart.defaults.font.size = 11;
+    Chart.defaults.font.size = 13;
     const c = cores();
     canvas.setAttribute('role', 'img');
     canvas.setAttribute('aria-label', ariaLabel);

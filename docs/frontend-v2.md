@@ -40,6 +40,10 @@ Decisões e divergências do briefing (para você aprovar):
 - **Marca:** o logotipo da landing tem cor fixa; usei o mesmo desenho com `currentColor` para valer nos dois temas.
 - **"Malha de vazão":** não encontrei essa expressão em nenhum arquivo do repositório (código ou documentação técnica). **Não abri os `.docx` do projeto** (`SmartPLC.docx`, `SmartPLC_corrigido.docx`); se o documento acadêmico ainda diz "vazão", a inconsistência está nele e eu não o alterei.
 
+## Escala tipográfica
+
+O aplicativo usa um degrau acima da landing, para leitura prolongada em tela de trabalho (a landing não foi alterada): corpo 18/28 px, texto pequeno 16/24, rótulos mono 14/18 (caixa alta), microtexto 13/17, leituras grandes inalteradas. Os rótulos do sinótico e dos gráficos acompanham (gráficos 13 px; no celular, os textos do desenho são ampliados para compensar o encolhimento do SVG). As variáveis estão em `css/base.css` (`--text-body`, `--text-small`, `--text-label`, `--text-micro`); ajustar a leitura é mexer nelas.
+
 ## Preferências (Integrações)
 
 Nome exibido, casas decimais, quais variáveis ficam em destaque e quais seções aparecem na Visão Geral. **Ficam no `localStorage` do navegador** (chave `smartplc.prefs.v1`): não vão ao servidor, não valem para outras pessoas/aparelhos, não alteram endereços do CLP e **não mudam a política de gravação do histórico**. Foi a opção mais simples e segura para a primeira versão; se um dia precisarem ser compartilhadas, vira um endpoint autenticado.

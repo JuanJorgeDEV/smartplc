@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Captura as telas do SmartPLC V2 com o Chrome em modo headless, em TEMPO REAL (protocolo CDP), página inteira.
-// Uso: node tools/capturar-telas.js [urlBase=http://localhost:5000] [filtro-de-nome] [segundosDeEspera=10]
+// Uso: node tools/capturar-telas.js [urlBase=http://localhost:5000] [filtro-de-nome | =nome-exato] [segundosDeEspera=10]
 // Requer o backend rodando. Para a Visão Geral ter dados, telemetria precisa estar chegando (Node-RED ou o simulador).
 // Saída: docs/evidencias/v2/*.png. As imagens NÃO são evidência de integração com o PLCSIM: dependem da fonte da telemetria.
 
@@ -86,7 +86,7 @@ function conectar(url) {
     try {
         await cdp.enviar('Page.enable');
         for (const [nome, rota, largura, escala, tema] of ALVOS) {
-            if (filtro && !nome.includes(filtro)) continue;
+            if (filtro && !(filtro.startsWith('=') ? nome === filtro.slice(1) : nome.includes(filtro))) continue; // '=nome' = igualdade exata
             const movel = largura < 600;
             await cdp.enviar('Emulation.setDeviceMetricsOverride', { width: largura, height: 900, deviceScaleFactor: escala, mobile: movel });
             await cdp.enviar('Page.navigate', { url: 'about:blank' });
