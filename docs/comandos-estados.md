@@ -39,3 +39,10 @@ Exige que a telemetria traga `setpoint`, `modoManual`, `valvulaManual`, `kp`, `t
 ## Decisão pendente
 
 Escolher A ou B depende das respostas 5 e 6 de `integracao-node-red.md`. Nada disto foi implementado.
+
+## Atualização (12/10/2026): o que o `flows.json` real permite
+
+- O `s7 in` de `setpoint`, `modo_manual`, `kp`, `ti`, `td` e `valvula_manual` alimenta a telemetria: **o nível A é viável sem alterar o fluxo** (confirmação por releitura).
+- O `/api/comando-clp` responde `{"status":"sucesso"}` em paralelo com as escritas `s7 out`, sem esperar o CLP. Portanto o 200 do Node-RED prova apenas **recebido** (e, no máximo, "despachado para o nó S7"), nunca **confirmado**. `encaminhado` de verdade (escrita concluída) exigiria o nível B.
+- Há um defeito provável na resposta HTTP do fluxo original (msg nova sem `msg.res`). A cópia `node-red/flows.smartplc-dotnet.json` o corrige; detalhes em `docs/integracao-node-red.md`.
+- Recomendação: implementar o nível A (estados `solicitado → recebido → confirmado | expirado`) e adiar o B.

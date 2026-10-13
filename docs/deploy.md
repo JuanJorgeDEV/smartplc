@@ -25,24 +25,40 @@ Alternativa por variável de ambiente (PowerShell): `$env:ConnectionStrings__Sma
 
 ### Aplicar o esquema (só com sua autorização)
 
+Há dois caminhos equivalentes; o esquema é **idempotente** (rodar duas vezes não quebra nada).
+
+**Caminho 1 (recomendado, o mais visível):** abra `backend-dotnet/db/001_esquema_inicial.sql`, copie o conteúdo e cole no **SQL Editor** do Supabase. Cria `telemetry_samples`, `process_events`, `control_commands` e `__EFMigrationsHistory`.
+
+**Caminho 2 (pela ferramenta do EF, usando a connection string do user-secrets):**
+
 ```bash
-# 1) gerar o SQL e REVISAR antes de rodar
-dotnet ef migrations script --idempotent --project src/SmartPlc.Api --output esquema.sql
-# 2) aplicar: cole esquema.sql no SQL Editor do Supabase, ou
-dotnet ef database update --project src/SmartPlc.Api          # usa a connection string acima
-# (ou History__MigrateOnStartup=true uma única vez — desligado por padrão)
+cd backend-dotnet
+dotnet tool restore                                           # instala o dotnet-ef LOCAL do repositório (dotnet-tools.json)
+dotnet tool run dotnet-ef database update --project src/SmartPlc.Api
 ```
 
-`dotnet-ef` ainda não está instalado como ferramenta do projeto: `dotnet new tool-manifest && dotnet tool install dotnet-ef` (local ao repositório, não global).
-**A migration inicial foi escrita à mão** (o Smart App Control impediu o `dotnet ef` nesta máquina). Ela foi aplicada do zero num PostgreSQL 17 real pelos testes, e `MigrationSnapshotTests` confirma que modelo e snapshot estão em sincronia. Se quiser trocá-la por uma gerada pela ferramenta: apague `Persistence/Migrations/` e rode `dotnet ef migrations add InitialCreate --output-dir Persistence/Migrations`.
+O comando lê `ConnectionStrings:SmartPlc` do user-secrets (ou de `ConnectionStrings__SmartPlc`) e **falha** se não houver, em vez de apontar para outro lugar.
+Para regerar o SQL: `dotnet tool run dotnet-ef migrations script --idempotent --project src/SmartPlc.Api -o db/001_esquema_inicial.sql`.
+
+A migration inicial foi escrita à mão (o Smart App Control impediu o `dotnet ef` naquele dia). Depois, o `dotnet ef migrations has-pending-model-changes` oficial confirmou **"No changes have been made to the model since the last migration"**, ela foi aplicada do zero num PostgreSQL 17 real pelos testes, e `MigrationSnapshotTests` guarda essa sincronia.
+
 
 ### Retenção agendada
 
 Depois do esquema, rode `backend-dotnet/db/retencao-pg_cron.sql` no SQL Editor (Supabase Cron). Consulta de histórico de execuções: `cron.job_run_details`.
 
+### Segurança: ative o RLS (sim) — `db/002_seguranca_rls.sql`
+
+O Supabase expõe o schema `public` pela Data API (REST) a quem tiver a URL do projeto e a chave anon/publishable, que é pública por natureza. Tabelas criadas pelo SQL Editor **nascem sem RLS**. O SmartPLC não usa a Data API (o backend conecta direto no Postgres como `postgres`, que tem `BYPASSRLS`), então:
+
+- Rode `002_seguranca_rls.sql` logo depois do esquema: liga o RLS **sem políticas** (ninguém pela API vê ou altera nada) e retira os grants de `anon`/`authenticated`.
+- O backend e o pg_cron seguem funcionando normalmente (ignoram o RLS).
+- Não crie políticas "liberando" nada. Se um dia o navegador precisar ler o histórico, ele deve passar pelo backend (`/api/historico`), não pela Data API.
+- O mesmo vale para a `service_role`/secret key: não é necessária em nenhum ponto deste projeto e nunca deve ir ao front-end nem ao GitHub.
+
 ### Backups e acesso
 
-Backups e limites dependem do plano (conferir no painel). O navegador **nunca** fala com o banco: só o backend, com a connection string no servidor. Não use a `service_role` key em lugar nenhum deste projeto — ela não é necessária (a conexão é Postgres direto). Se um dia habilitar a Data API do Supabase, ative RLS nas tabelas `telemetry_samples`, `process_events` e `control_commands`.
+Backups e limites dependem do plano (conferir no painel). O navegador **nunca** fala com o banco: só o backend, com a connection string no servidor.
 
 ## 2. Backend no Render
 

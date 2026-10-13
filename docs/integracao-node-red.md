@@ -1,66 +1,72 @@
 # Integração Node-RED ↔ SmartPLC
 
-Estado: **Marco 3 em andamento — aguardando `flows.json`.** Este documento separa o que está confirmado no código do que ainda depende do Node-RED/CLP reais. Nada abaixo da seção "Confirmado" foi observado no ambiente industrial.
+Estado: **`flows.json` recebido e analisado (12/10/2026).** O que está abaixo veio da leitura do arquivo (`node-red/flows.original.json`, inventário completo em `docs/inventario-flows.md`). **Nada foi observado ao vivo no PLCSIM**: a validação com o CLP depende do teste descrito em `docs/roteiro-teste-node-red.md`.
 
-## 1. Confirmado (lendo o código do projeto)
+## 1. Como a integração funciona (confirmado no fluxo)
 
-Contrato que o backend espera (idêntico no Express e no .NET):
+```
+CLP (PLCSIM Advanced, 192.168.0.150:102, rack 0 slot 1)
+   │  node-red-contrib-s7 3.1.3, ISO-on-TCP, ciclo de leitura 1000 ms
+   ▼
+10 nós "s7 in" (diff=true: só emitem quando o valor MUDA)
+   ▼
+COMUNICACAO-GET (function) ── guarda cada variável em flow context e monta o payload completo
+   ▼
+GET-valores (http request) ── POST http://localhost:3000/api/telemetria   (Express)
 
-| Sentido | Chamada | Corpo |
+Dashboard ── POST /api/controle ──► backend ──► POST http://127.0.0.1:1880/api/comando-clp
+   ▼
+http in "POST-VALORES" ─► PROCESSA-COMANDO (function, 7 saídas) ─► 6 nós "s7 out" + "http response"
+```
+
+### Mapa de variáveis (tags do PLCSIM)
+
+| Campo JSON | Variável no fluxo | Endereço S7 | Tipo | Leitura | Escrita (comando) |
+|---|---|---|---|---|---|
+| `nivel` | `Nivel_Tanque` | `DB3,REAL0` | REAL | sim | não |
+| `valvula` | `Valvula_Output` | `DB4,REAL0` | REAL | sim | não |
+| `setpoint` | `setpoint` | `DB5,REAL0` | REAL | sim | sim |
+| `modoManual` | `modo_manual` | `DB5,X8.0` | BOOL | sim | sim |
+| `kp` | `kp` | `DB5,REAL10` | REAL | sim | sim |
+| `ti` | `ti` | `DB5,REAL14` | REAL | sim | sim |
+| `td` | `td` | `DB5,REAL18` | REAL | sim | sim |
+| `valvulaManual` | `valvula_manual` | `DB5,REAL22` | REAL | sim | sim |
+
+Escala: 0–100 % (os gauges do Node-RED usam min 0, max 100). Limiares de alarme: 10 e 90 (iguais aos do backend). O fluxo envia sempre **os 8 campos**, números e `modoManual` como booleano JSON.
+
+## 2. Resposta às perguntas pendentes
+
+| # | Pergunta | Resposta (fonte: `flows.json`) |
 |---|---|---|
-| CLP → Node-RED → backend | `POST /api/telemetria` | `nivel`*, `valvula`*, `setpoint`, `modoManual`, `valvulaManual`, `kp`, `ti`, `td` (* obrigatórios no .NET) |
-| backend → Node-RED | `POST http://127.0.0.1:1880/api/comando-clp` | subconjunto de `setpoint`, `modoManual`, `valvulaManual`, `kp`, `ti`, `td` |
-| dashboard ← backend | SignalR `telemetria_update` | `{ telemetria, controle }` |
+| 1 | Protocolo com o PLCSIM | S7 (ISO-on-TCP, porta 102) via `node-red-contrib-s7` 3.1.3, endpoint "PLCSIM_Advanced" |
+| 2 | Intervalo de leitura | `cycletime` = 1000 ms, mas com `diff=true`: **só há mensagem quando o valor muda** |
+| 3 | Formato real da telemetria | `{nivel, valvula, setpoint, modoManual, valvulaManual, kp, ti, td}`, todos presentes, 2 casas decimais |
+| 4 | Envia os campos obrigatórios? | **Sim**: `nivel` e `valvula` sempre presentes e dentro de 0–100 |
+| 5 | `modoManual` | booleano JSON (`true`/`false`) |
+| 6 | A telemetria devolve SP/modo/PID lidos do CLP? | **Sim** (`s7 in` de cada variável). Logo a confirmação por releitura (nível A de `comandos-estados.md`) é viável |
+| 7 | Resposta de `/api/comando-clp` | `{"status":"sucesso"}` 200, enviada **em paralelo** com as escritas, sem esperar o CLP. Significa "recebido", nunca "confirmado" |
+| 8 | Destino atual da telemetria | `http://localhost:3000/api/telemetria` (Express); sem cabeçalho de chave |
 
-Leitura e escrita acontecem no Node-RED; o backend nunca fala com o CLP. A lógica de controle (PID, intertravamentos) fica no CLP.
+## 3. Pontos de atenção encontrados
 
-## 2. Desconhecido — precisa do ambiente real
-
-| # | Informação | Por que importa | Como obter |
+| # | Achado | Impacto | Tratamento |
 |---|---|---|---|
-| 1 | `flows.json` do Node-RED (menu ☰ → Exportar → Todos os fluxos → JSON). Credenciais ficam em `flows_cred.json`; **não enviar**. | Protocolo, tags, intervalo, formato real | Exportar do editor do Node-RED |
-| 2 | Lista de nós instalados (menu ☰ → Gerenciar paleta) | Identifica o nó de comunicação (S7, OPC UA, Snap7…) | Print ou texto |
-| 3 | Mapeamento das tags no TIA Portal (DB, offsets, tipos, escala de engenharia) | O nome da variável no JSON ≠ endereço no CLP; precisa de unidade e escala | Tabela de variáveis do projeto TIA |
-| 4 | Como o PLCSIM é acessado (PLCSIM V1x/Advanced, IP/adaptador, "NetToPLCsim", S7-1200/1500) | Determina se dá para repetir o teste em outra máquina | Config. do PLCSIM e do nó de comunicação |
-| 5 | O que o endpoint `/api/comando-clp` do Node-RED responde, **e quando** (antes ou depois de escrever no CLP) | Decide o que "Recebido" e "Encaminhado" significam | Fluxo + teste |
-| 6 | Se o fluxo devolve `setpoint`, `modoManual`, `valvulaManual`, `kp`, `ti`, `td` lidos do CLP na telemetria | Habilita a confirmação por releitura (ver `comandos-estados.md`) | Fluxo + payload real |
-| 7 | Tipo enviado em `modoManual` (bool, 0/1, texto) | O backend aceita bool e 0/1; rejeita texto ambíguo | Payload real |
-| 8 | Escala de `nivel` e `valvula` (0–100 %? valor bruto do conversor?) | Backend rejeita fora de 0–100 | TIA + payload real |
-| 9 | Versão do Node-RED, SO e se roda como serviço | Reprodução da demonstração | Console |
+| A | `diff=true` em todos os `s7 in` | Com nível exatamente constante não chega telemetria; o backend marca "CLP offline" após 5 s (o Express/dashboard antigo também alarmava) | Cópia preparada: `diff=false` no `s7 in` de `Nivel_Tanque` que alimenta a telemetria |
+| B | `COMUNICACAO-GET` envia **zeros e padrões** (nível 0, kp 1, ti 20) enquanto as variáveis não foram todas lidas | Dado inventado no início: apareceria como "nível baixo" no histórico | Cópia: nó `SMARTPLC-PREPARA` só libera após as 8 leituras |
+| C | `PROCESSA-COMANDO` responde com uma msg nova, sem `msg.res` | O nó `http response` não consegue responder; o backend esperaria 2 s e daria erro mesmo com o comando já escrito no CLP. **Hipótese a confirmar** no Debug do Node-RED ("no response object") | Cópia: reaproveita a msg original |
+| D | Limites da interface do Node-RED: Kp, Ti, Td entre 0 e 100 | O backend e o dashboard .NET aceitam Kp ≤ 1000 e Ti/Td ≤ 100000 nos comandos | Pendente de decisão: alinhar comandos a 0–100 (a telemetria deve continuar aceitando o que o CLP reportar) |
+| E | Os `ui-number-input` têm `passthru` e ficam entre `s7 in` e `s7 out` | Quando o CLP muda um valor, o widget o reescreve no CLP (mesmo valor, inócuo). Pode atropelar uma alteração concorrente | Observação; sem ação agora |
+| F | Existe um segundo dashboard (FlowFuse, `/dashboard/page1`) que também escreve no CLP | Dois operadores/painéis podem comandar ao mesmo tempo | Regra operacional: um painel de comando por vez |
+| G | O endereço `192.168.0.150` é o adaptador virtual do PLCSIM Advanced **daquele** computador | O fluxo só funciona na máquina de quem tem o PLCSIM | Teste feito pelo colega |
 
-## 3. Procedimento quando o `flows.json` chegar
+## 4. Ensaio sem o CLP (feito)
 
-```bash
-node tools/analisar-flows.js caminho/flows.json > docs/inventario-flows.md
-```
-
-A ferramenta (somente leitura) lista abas, tipos de nó (revela o protocolo), nós de configuração com segredos omitidos, gatilhos e intervalos, endpoints HTTP, código das funções, mapeamentos e confere os campos do contrato (`nivel`, `valvula` etc.). Depois:
-
-1. **Tabela de tags** (preencher aqui, com base no inventário e no TIA):
-
-   | Campo JSON | Variável CLP (DB/offset) | Tipo | Unidade/escala | Sentido (R/W) | Nó Node-RED |
-   |---|---|---|---|---|---|
-   | _a preencher_ | | | | | |
-
-2. **Validação do caminho de leitura** CLP → Node-RED → .NET → Dashboard:
-   - subir PLCSIM + CLP em RUN, Node-RED e o backend .NET (`Ingest:ApiKey` vazia só em Development);
-   - apontar o `http request` de telemetria para `http://localhost:5000/api/telemetria` **numa cópia do fluxo** (o fluxo atual não é alterado sem sua autorização);
-   - evidências: log do backend (nenhuma linha "Telemetria rejeitada"), `GET /api/status` com `plcOnline:true`, captura do dashboard, variação de PV ao mudar a simulação no TIA/PLCSIM.
-3. **Validação do caminho de comando**, sem alterar a lógica do CLP, com `Control:Enabled=true` só em Development:
-   - enviar um setpoint pelo dashboard e registrar em ordem: log do backend, debug do Node-RED (`msg` recebida), valor no CLP (variável observada no TIA/PLCSIM) e telemetria seguinte;
-   - repetir com Node-RED parado (esperado 504/502 e estado intacto).
-
-## 4. Ensaio sem o ambiente real
-
-`tools/simulador-nodered.js` imita o Node-RED (envia telemetria e recebe `/api/comando-clp`) com um tanque simulado. **Não é evidência do CLP**: serve para ensaiar o backend e o dashboard.
-
-```bash
-node tools/simulador-nodered.js --backend=http://localhost:5000      # --reflete=nao, --responde=erro|mudo para casos de falha
-```
+`tests/node-red/flow.test.js` executa o **código real** dos nós function (original e cópia) num sandbox com mensagens `s7 in` simuladas (tópico = nome da variável): mapeamento das 8 tags, booleanos, `valvula_manual` × `Valvula_Output`, guarda do `SMARTPLC-PREPARA`, ligação dos nós, escrita de um comando nas 6 saídas, resposta HTTP com e sem `msg.res`. Além disso, o payload produzido por esse código foi enviado ao backend .NET real e aceito (HTTP 200, refletido em `/api/status`). **Isto não substitui o teste com o PLCSIM**: as leituras do S7 são simuladas.
 
 ## 5. Resultados dos testes
 
 | Data | Teste | Ambiente | Resultado | Evidência |
 |---|---|---|---|---|
-| — | Leitura PLCSIM → dashboard .NET | real | **pendente** (falta `flows.json`) | |
-| — | Comando dashboard → CLP | real | **pendente** | |
+| 12/10/2026 | Código dos nós + contrato do backend | simulado (sandbox + .NET local) | **passou** (16 testes) | `tests/node-red/flow.test.js` |
+| — | Leitura PLCSIM → dashboard .NET | real | **pendente** (roteiro L1–L6) | |
+| — | Comando dashboard → CLP | real | **pendente** (roteiro C1–C4) | |
