@@ -1,0 +1,30 @@
+# Blueprint do Render para o SmartPLC. Lido por "New > Blueprint" apontando para este repositório.
+# Nada secreto fica aqui: a connection string é pedida no painel (sync: false) e a chave de ingestão é gerada pelo Render.
+services:
+  - type: web
+    name: smartplc
+    runtime: docker
+    plan: free
+    region: virginia               # o Render não tem região no Brasil; Virgínia é a mais próxima de São Paulo
+    dockerfilePath: ./backend-dotnet/Dockerfile
+    dockerContext: ./backend-dotnet
+    healthCheckPath: /health       # não consulta o banco: uma falha do banco não reinicia o serviço
+    autoDeploy: true
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      # Chave que o Node-RED envia em X-Api-Key. Gerada pelo Render; copie-a do painel para a variável SMARTPLC_API_KEY do Node-RED.
+      - key: Ingest__ApiKey
+        generateValue: true
+      # Session pooler do Supabase (porta 5432). Preenchida à mão no painel: contém a senha do banco.
+      - key: ConnectionStrings__SmartPlc
+        sync: false
+      # Aplica as migrations (esquema + RLS) na subida. Depois da primeira subida pode voltar para false.
+      - key: History__MigrateOnStartup
+        value: "true"
+      # Comandos ao CLP: DESLIGADOS na nuvem. O Render não alcança o Node-RED local e ainda não existe a fila de comandos.
+      - key: Control__Enabled
+        value: "false"
+      # Laboratório: criar/encerrar sessões só grava no banco (não toca o CLP).
+      - key: Lab__WriteEnabled
+        value: "true"

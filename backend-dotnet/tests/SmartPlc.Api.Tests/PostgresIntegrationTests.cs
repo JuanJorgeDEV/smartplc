@@ -2,6 +2,8 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Storage;
 using Npgsql;
 using SmartPlc.Api.History;
 using SmartPlc.Api.Persistence;
@@ -31,6 +33,17 @@ public sealed class PostgresFixture : IAsyncLifetime
         Options = new DbContextOptionsBuilder<SmartPlcDbContext>().UseNpgsql(DbConnection.Normalize(Raw)).Options;
         await using var db = new SmartPlcDbContext(Options);
         await db.Database.EnsureDeletedAsync();
+        await db.GetService<IRelationalDatabaseCreator>().CreateAsync();
+
+        // Imita o Supabase: papéis da Data API existem e recebem privilégios padrão sobre tabelas novas do schema public.
+        await db.Database.ExecuteSqlRawAsync(@"
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon') THEN CREATE ROLE anon NOLOGIN; END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'authenticated') THEN CREATE ROLE authenticated NOLOGIN; END IF;
+END $$;
+GRANT USAGE ON SCHEMA public TO anon, authenticated;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO anon, authenticated;");
+
         await db.Database.MigrateAsync();
     }
 
@@ -68,6 +81,29 @@ public class PostgresIntegrationTests(PostgresFixture fx)
         new() { RecebidoEm = T0.AddSeconds(segundos), AdquiridoEm = aq, Nivel = nivel, Valvula = 40, Setpoint = 60, ModoManual = false, MotivoGravacao = m };
 
     // ---------- Migrations ----------
+
+    [PostgresFact]
+    public async Task Migrations_ligam_RLS_e_retiram_privilegios_da_Data_API()
+    {
+        await using var db = fx.NovoContexto();
+        var tabelas = new[] { "telemetry_samples", "process_events", "control_commands", "experiment_sessions", "__EFMigrationsHistory" };
+
+        foreach (var t in tabelas)
+        {
+            var rls = await db.Database
+                .SqlQuery<bool>($"SELECT relrowsecurity AS \"Value\" FROM pg_class WHERE oid = ('public.\"' || {t} || '\"')::regclass")
+                .SingleAsync();
+            Assert.True(rls, $"RLS desligado em {t}");
+
+            foreach (var papel in new[] { "anon", "authenticated" })
+            {
+                var acesso = await db.Database
+                    .SqlQuery<bool>($"SELECT has_table_privilege({papel}, ('public.\"' || {t} || '\"')::regclass, 'SELECT') AS \"Value\"")
+                    .SingleAsync();
+                Assert.False(acesso, $"{papel} ainda lê {t}");
+            }
+        }
+    }
 
     [PostgresFact]
     public async Task Migration_inicial_aplicada_cria_tabelas_e_indices_esperados()
