@@ -67,3 +67,16 @@ Microexplicações estáticas (`wwwroot/js/glossary.js`), sem IA: CLP, processo,
 - Os dados das demonstrações e capturas vieram do **simulador do Node-RED** (`tools/simulador-nodered.js`), não do PLCSIM. Os números reais dependem do teste da equipe.
 - A sobre-elevação em degraus para baixo é a ultrapassagem do novo SP no sentido do movimento (subamortecimento), calculada da mesma forma.
 - Sem comunicação durante a sessão, o resumo reflete apenas as amostras que existem; o servidor não preenche lacunas.
+
+## Modo simulação (22/10/2026)
+
+O Laboratório funciona **sem CLP e sem Node-RED**. Ao iniciar uma sessão, escolhe-se a fonte: *Simulação* ou *CLP real*. Sem comunicação com o CLP, a simulação é a escolha padrão.
+
+- **Modelo** (`TankSimulator`): `dh/dt = 0,036·u − 0,2547·√h − 0,018·p` (h nível %, u válvula %, p dreno 0–100). Em h = 50 % e u ≈ 50 % o tanque fica em equilíbrio. PID posicional com anti-windup e transferência manual/automático sem salto; Ti = 0 e Td = 0 desligam as ações integral e derivativa. Determinístico (sem ruído aleatório).
+- **Execução** (`SimulationService`): uma simulação por vez, em memória, passos de 0,1 s; uma amostra por segundo **simulado** e uma amostra imediata a cada alteração. Velocidade de 1×, 2×, 5× ou 10×. O relógio da sessão é o tempo simulado.
+- **O que a pessoa pode alterar durante a sessão:** setpoint, modo, abertura manual, Kp/Ti/Td, dreno (perturbação) e velocidade. Cada alteração vira um evento.
+- **Persistência:** ao encerrar, a série vai para `experiment_sessions.SerieSimulada` (jsonb, até 5000 amostras e 500 eventos). Cancelar descarta. Os dados simulados **nunca** entram em `telemetry_samples` nem se misturam ao histórico do CLP. As sessões têm `Fonte` (`clp` ou `simulacao`) e aparecem rotuladas.
+- **Análise:** a mesma do CLP (`ExperimentAnalyzer`): tempo até 63 %, subida 10→90 %, sobre-elevação, estabilização, e a comparação automático × manual.
+- **Reinício do servidor:** a simulação vive na memória; uma sessão simulada ativa que sobreviveu no banco é cancelada, com a observação "simulação interrompida por reinício do servidor", para não bloquear a próxima.
+
+API: `POST /api/experimentos` aceita `fonte: "simulacao"` e `simulacao: { nivelInicial, setpoint, kp, ti, td, velocidade }`; `POST /api/experimentos/{id}/simulacao` aplica alterações (`setpoint`, `modoManual`, `valvulaManual`, `kp`, `ti`, `td`, `perturbacao`, `velocidade`). Só operadores e administradores.

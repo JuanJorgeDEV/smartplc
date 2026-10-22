@@ -6,6 +6,7 @@
 //
 // Uso:  node tools/simulador-nodered.js [--backend=http://localhost:5000] [--intervalo=1000]
 //                                     [--reflete=sim|nao] [--responde=ok|erro|mudo]
+//   --entrega=fila : comandos chegam na RESPOSTA da telemetria (como o servidor na nuvem entrega; padrão: direta, via POST /api/comando-clp)
 // Chave de ingestão (se configurada no backend): variável de ambiente INGEST_KEY.
 //   --reflete=nao : telemetria NÃO traz setpoint/modo/PID (testa o caso "fluxo sem eco dos parâmetros")
 //   --responde=erro|mudo : o endpoint de comando devolve 500 / não responde (testa falhas)
@@ -17,6 +18,7 @@ const BACKEND = arg('backend', 'http://localhost:5000');
 const INTERVALO = Number(arg('intervalo', 1000));
 const REFLETE = arg('reflete', 'sim') === 'sim';
 const RESPONDE = arg('responde', 'ok');
+const ENTREGA = arg('entrega', 'direta');
 const PORTA = 1880;
 
 // "CLP" simulado: tanque de primeira ordem + PI
@@ -43,8 +45,21 @@ function enviarTelemetria() {
     const headers = { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(dados) };
     if (process.env.INGEST_KEY) headers['X-Api-Key'] = process.env.INGEST_KEY;
     const req = http.request(url, { method: 'POST', headers }, (res) => {
-        if (res.statusCode !== 200) log(`telemetria rejeitada: HTTP ${res.statusCode}`);
-        res.resume();
+        let texto = '';
+        res.on('data', (c) => (texto += c));
+        res.on('end', () => {
+            if (res.statusCode !== 200) { log(`telemetria rejeitada: HTTP ${res.statusCode}`); return; }
+            if (ENTREGA !== 'fila') return;
+            try {
+                const r = JSON.parse(texto);
+                for (const c of Array.isArray(r.comandos) ? r.comandos : []) {
+                    log('COMANDO RECEBIDO (fila):', JSON.stringify(c));
+                    if (RESPONDE === 'mudo' || RESPONDE === 'erro') continue;   // simula um fluxo que não aplica
+                    Object.assign(clp, c.campos);
+                    log('  -> aplicado no CLP simulado:', JSON.stringify({ sp: clp.setpoint, manual: clp.modoManual, cv: clp.valvulaManual, kp: clp.kp, ti: clp.ti, td: clp.td }));
+                }
+            } catch { /* resposta sem JSON */ }
+        });
     });
     req.on('error', (e) => log('backend inacessível:', e.message));
     req.end(dados);
@@ -63,6 +78,6 @@ http.createServer((req, res) => {
             res.writeHead(200, { 'Content-Type': 'application/json' }).end('{"ok":true}');
         });
     } else res.writeHead(404).end();
-}).listen(PORTA, '127.0.0.1', () => log(`SIMULADOR ativo: comandos em :${PORTA}, telemetria -> ${BACKEND} a cada ${INTERVALO} ms (reflete=${REFLETE}, responde=${RESPONDE})`));
+}).listen(PORTA, '127.0.0.1', () => log(`SIMULADOR ativo: comandos em :${PORTA}, telemetria -> ${BACKEND} a cada ${INTERVALO} ms (reflete=${REFLETE}, responde=${RESPONDE}, entrega=${ENTREGA})`));
 
 setInterval(enviarTelemetria, INTERVALO);

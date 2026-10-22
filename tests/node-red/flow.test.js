@@ -105,10 +105,11 @@ test('[CÓPIA] o payload completo cumpre o contrato do backend (campos obrigató
     assert.equal(typeof p.modoManual, 'boolean');
 });
 
-test('[CÓPIA] a ligação dos nós é COMUNICACAO-GET -> PREPARA -> http request -> debug', () => {
+test('[CÓPIA] a ligação dos nós é COMUNICACAO-GET -> PREPARA -> http request -> (debug, COMANDOS -> PROCESSA-COMANDO)', () => {
     assert.deepEqual(no(COPIA, '6da3499f7da6984f').wires, [['smartplc0000prepara']]);
     assert.deepEqual(no(COPIA, 'smartplc0000prepara').wires, [['513eb33a9393c996']]);
-    assert.deepEqual(no(COPIA, '513eb33a9393c996').wires, [['smartplc0000resposta']]);
+    assert.deepEqual(no(COPIA, '513eb33a9393c996').wires, [['smartplc0000resposta', 'smartplc0000comandos']]);
+    assert.deepEqual(no(COPIA, 'smartplc0000comandos').wires, [['9e7744f7d96b3c0f']]);
     assert.equal(no(COPIA, '513eb33a9393c996').url, '');
 });
 
@@ -145,10 +146,65 @@ test('[CÓPIA] a resposta HTTP carrega msg.res e status 200', () => {
     assert.equal(saidas[0].payload, 50); // o setpoint continua sendo escrito
 });
 
-test('a cópia mantém os 43 nós do original e acrescenta só 2', () => {
-    assert.equal(COPIA.length, ORIGINAL.length + 2);
+test('a cópia mantém os 43 nós do original e acrescenta só 3', () => {
+    assert.equal(COPIA.length, ORIGINAL.length + 3);
     const novos = COPIA.filter((n) => !ORIGINAL.some((o) => o.id === n.id)).map((n) => n.id).sort();
-    assert.deepEqual(novos, ['smartplc0000prepara', 'smartplc0000resposta']);
+    assert.deepEqual(novos, ['smartplc0000comandos', 'smartplc0000prepara', 'smartplc0000resposta']);
+});
+
+// ---------- Entrega de comandos por fila (Control__Delivery=queue) ----------
+
+const resposta = (corpo, statusCode = 200) => ({ payload: corpo, statusCode });
+const comandos = (...cs) => resposta({ status: 'ok', comandos: cs });
+
+test('[CÓPIA] COMANDOS: sem comandos na resposta da telemetria, nada é emitido', () => {
+    const ctx = contexto();
+    assert.equal(rodar(COPIA, 'smartplc0000comandos', resposta({ status: 'ok' }), ctx), null);
+    assert.equal(rodar(COPIA, 'smartplc0000comandos', comandos(), ctx), null);
+    assert.equal(rodar(COPIA, 'smartplc0000comandos', { payload: 'texto', statusCode: 200 }, ctx), null);
+    assert.equal(rodar(COPIA, 'smartplc0000comandos', { payload: null, statusCode: 200 }, ctx), null);
+});
+
+test('[CÓPIA] COMANDOS: resposta de erro (401, 500) nunca vira comando', () => {
+    const msg = comandos({ id: 'a', campos: { setpoint: 70 } });
+    for (const codigo of [401, 403, 500, 0]) assert.equal(rodar(COPIA, 'smartplc0000comandos', { ...msg, statusCode: codigo }, contexto()), null);
+});
+
+test('[CÓPIA] COMANDOS: cada comando vira uma mensagem para o PROCESSA-COMANDO, na ordem recebida', () => {
+    const [saidas] = rodar(COPIA, 'smartplc0000comandos', comandos(
+        { id: 'a', campos: { kp: 2 } },
+        { id: 'b', campos: { setpoint: 70, modoManual: true } }
+    ), contexto());
+    assert.deepEqual(saidas.map((m) => m.payload), [{ kp: 2 }, { setpoint: 70, modoManual: true }]);
+    assert.deepEqual(saidas.map((m) => m.comandoId), ['a', 'b']);
+});
+
+test('[CÓPIA] COMANDOS: campos desconhecidos, fora da faixa ou do tipo errado não chegam ao CLP', () => {
+    const [saidas] = rodar(COPIA, 'smartplc0000comandos', comandos(
+        { id: 'a', campos: { setpoint: 101 } },                       // fora da faixa
+        { id: 'b', campos: { kp: -1, ti: 5 } },                       // só o válido passa
+        { id: 'c', campos: { ligarBomba: true, DB1: 5 } },            // desconhecidos
+        { id: 'd', campos: { setpoint: 'abc', modoManual: 'true' } }, // tipos errados
+        { id: 'e', campos: null },
+        { id: 'f' },
+        null
+    ), contexto());
+    assert.deepEqual(saidas.map((m) => m.payload), [{ ti: 5 }]);
+});
+
+test('[CÓPIA] COMANDOS -> PROCESSA-COMANDO: um comando da fila escreve nas saídas certas e NÃO gera resposta HTTP', () => {
+    const [saidas] = rodar(COPIA, 'smartplc0000comandos', comandos({ id: 'a', campos: { setpoint: 70, valvulaManual: 33, modoManual: true } }), contexto());
+    const escritas = rodar(COPIA, '9e7744f7d96b3c0f', saidas[0], contexto());
+    assert.equal(escritas.length, 7);
+    assert.deepEqual(escritas.slice(0, 6).map((m) => m?.payload ?? null), [70, true, 33, null, null, null]);
+    assert.equal(escritas[6], null, 'sem requisição HTTP não há o que responder (evita aviso do nó http response)');
+});
+
+test('[CÓPIA] PROCESSA-COMANDO continua respondendo 200 quando o comando veio por HTTP', () => {
+    const res = { marcador: 'res' };
+    const escritas = rodar(COPIA, '9e7744f7d96b3c0f', { payload: { setpoint: 50 }, res }, contexto());
+    assert.equal(escritas[6].res, res);
+    assert.equal(escritas[6].statusCode, 200);
 });
 
 test('a cópia não contém segredos', () => {

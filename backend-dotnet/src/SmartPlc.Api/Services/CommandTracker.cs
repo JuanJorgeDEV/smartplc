@@ -111,6 +111,28 @@ public sealed class CommandTracker(TimeProvider clock, IOptions<CommandOptions> 
         }
     }
 
+    /// <summary>
+    /// Entrega por FILA: devolve, do mais antigo ao mais novo, os comandos ainda "solicitados" e os marca como recebidos
+    /// (foram incluídos na resposta da telemetria ao Node-RED). Cada comando sai uma única vez: quem decide se foi aplicado
+    /// é a releitura, e sem ela o comando expira. Comandos substituídos ou expirados nunca são entregues.
+    /// </summary>
+    public IReadOnlyList<CommandDto> RetirarParaEntrega()
+    {
+        lock (_lock)
+        {
+            var entregues = new List<CommandDto>();
+            foreach (var e in _entradas.Where(e => e.Estado == CommandStates.Solicitado).OrderBy(e => e.SolicitadoEm))
+            {
+                e.Estado = CommandStates.Recebido;
+                e.AtualizadoEm = clock.GetUtcNow();
+                e.Detalhe = "entregue ao Node-RED na resposta da telemetria";
+                if (_ultimoControle is { } c && _ultimaTelemetriaEm is { } t) TentarConfirmar(e, c, t);
+                entregues.Add(Dto(e));
+            }
+            return entregues;
+        }
+    }
+
     public CommandDto MarcarFalhou(Guid id, string detalhe)
     {
         lock (_lock)

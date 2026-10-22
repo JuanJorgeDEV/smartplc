@@ -75,7 +75,8 @@ Backups e limites dependem do plano (conferir no painel). O navegador **nunca** 
 | `Ingest__ApiKey` | chave longa e aleatória (obrigatória: a aplicação **não sobe** sem ela em Production) |
 | `Auth__AdminEmail`, `Auth__AdminPassword` | e-mail e senha do **primeiro administrador** (criado só se ainda não houver nenhum usuário). Preencha no painel do Render, nunca no repositório. Depois do primeiro acesso, troque a senha e apague `Auth__AdminPassword`. Ver [autenticacao.md](autenticacao.md) |
 | `Auth__Enabled` | não precisa definir: fora de Development o login vem **ligado** (e exige o banco) |
-| `Control__Enabled` | `false` (mantenha: controle remoto desligado na nuvem) |
+| `Control__Enabled` | `true` para operar pelo painel; só operadores e administradores comandam |
+| `Control__Delivery` | `queue` na nuvem: o Node-RED recebe os comandos na resposta da telemetria (ver [integracao-node-red.md](integracao-node-red.md), seção 6). `push` (padrão) é só para uso local |
 | `Cors__AllowedOrigins__0` | só se o dashboard for servido de outra origem |
 | `History__SampleIntervalSeconds`, `History__MinimumLevelChange` | opcionais |
 | `Lab__WriteEnabled` | `true`: com login, só operadores e administradores criam/encerram sessões (grava no banco; o CLP não é tocado) |

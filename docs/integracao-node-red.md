@@ -70,3 +70,16 @@ Escala: 0–100 % (os gauges do Node-RED usam min 0, max 100). Limiares de alarm
 | 12/10/2026 | Código dos nós + contrato do backend | simulado (sandbox + .NET local) | **passou** (16 testes) | `tests/node-red/flow.test.js` |
 | — | Leitura PLCSIM → dashboard .NET | real | **pendente** (roteiro L1–L6) | |
 | — | Comando dashboard → CLP | real | **pendente** (roteiro C1–C4) | |
+
+## 6. Comandos pela nuvem: entrega por fila (22/10/2026)
+
+O servidor no Render **não alcança** a máquina do Node-RED, então ele não pode chamar `POST /api/comando-clp`. Com `Control__Delivery=queue` (e `Control__Enabled=true`), o caminho inverte:
+
+1. O operador pede o comando no painel. O servidor valida e o guarda como **solicitado**.
+2. No próximo `POST /api/telemetria` do Node-RED (a cada ~1 s), a **resposta** traz os comandos pendentes: `{"status":"ok","comandos":[{"id":"...","campos":{"setpoint":70}}]}`. Nesse instante o comando passa a **recebido**. Cada comando sai uma única vez.
+3. O nó `SMARTPLC-COMANDOS` do fluxo (`node-red/flows.smartplc-dotnet.json`) valida tipos e faixas e entrega cada comando ao mesmo `PROCESSA-COMANDO` que já escreve no S7.
+4. O comando só vira **confirmado** quando a telemetria seguinte traz, lido do CLP, o valor pedido. Sem isso, **expira** em 10 s. Substituídos e expirados nunca são entregues.
+
+Para o colega: importe a versão atual de `flows.smartplc-dotnet.json`. O que muda no fluxo é o nó `SMARTPLC-COMANDOS` (ligado à saída do `GET-valores`) e uma linha em `PROCESSA-COMANDO`, que deixa de gerar resposta HTTP quando o comando não veio por HTTP. Sem esse nó, os comandos simplesmente expiram, sem efeito no CLP. `SMARTPLC_API_KEY` precisa estar definida, como já era para a telemetria.
+
+Segurança: os comandos só aparecem na resposta a quem tem a chave de ingestão, e só existem se um operador autenticado os pediu. O fluxo ainda recusa campos desconhecidos ou fora da faixa antes de escrever no CLP.

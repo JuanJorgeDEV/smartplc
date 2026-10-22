@@ -67,7 +67,7 @@ export async function montar(raiz) {
         $('tb-con').innerHTML = [
             L('Telemetria do CLP', `<span class="tag ${tomC}">${txtC}</span>${ult === null ? '' : ` <span class="num muted">${hora(Date.now() - ult * 1000)} (${idade(ult)})</span>`}`),
             L('Painel ↔ servidor', `<span class="tag ${hubTxt[0]}">${hubTxt[1]}</span>`),
-            L('Comandos ao CLP', cfg ? (cfg.controle.habilitado ? 'Habilitados' : 'Desabilitados · somente leitura') : '—'),
+            L('Comandos ao CLP', cfg ? (cfg.controle.habilitado ? (cfg.controle.entrega === 'fila' ? 'Habilitados · entregues pela resposta da telemetria' : 'Habilitados') : 'Desabilitados · somente leitura') : '—'),
             L('Histórico no banco', cfg ? (cfg.historico.habilitado ? `Ligado · consulta de até ${cfg.historico.periodoMaximoHoras} h por vez` : 'Desligado (sem banco configurado)') : '—'),
             L('Laboratório', cfg ? (cfg.laboratorio.habilitado ? (cfg.laboratorio.escrita ? 'Disponível' : 'Somente consulta') : 'Indisponível (exige o banco)') : '—'),
             L('Alarmes de nível', cfg ? `baixo &lt; ${num(cfg.processo.nivelBaixo, 0)} % · alto &gt; ${num(cfg.processo.nivelAlto, 0)} %` : '—')

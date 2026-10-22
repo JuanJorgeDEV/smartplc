@@ -28,9 +28,12 @@ services:
         sync: false
       - key: Auth__AdminPassword
         sync: false
-      # Comandos ao CLP: DESLIGADOS na nuvem. O Render não alcança o Node-RED local e ainda não existe a fila de comandos.
+      # Comandos ao CLP: só operadores e administradores (login). Entrega por FILA: o Render não alcança o Node-RED local,
+      # então o Node-RED recebe os comandos na resposta da telemetria que ele mesmo envia.
       - key: Control__Enabled
-        value: "false"
+        value: "true"
+      - key: Control__Delivery
+        value: "queue"
       # Laboratório: criar/encerrar sessões só grava no banco (não toca o CLP).
       - key: Lab__WriteEnabled
         value: "true"

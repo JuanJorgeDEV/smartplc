@@ -55,6 +55,7 @@ public static class ConfigEndpoints
                 {
                     habilitado = controle.Value.Enabled,
                     exigeChaveDeOperador = !auth.Habilitado && !string.IsNullOrEmpty(controle.Value.OperatorApiKey),
+                    entrega = controle.Value.Delivery == DeliveryModes.Queue ? "fila" : "direta",
                     confirmacaoSegundos = comando.Value.ConfirmationSeconds,
                     limites = new
                     {

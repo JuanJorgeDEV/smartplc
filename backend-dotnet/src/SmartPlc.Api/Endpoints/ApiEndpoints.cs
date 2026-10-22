@@ -33,6 +33,7 @@ public static class ApiEndpoints
         ITelemetryNotifier notifier,
         StalenessMonitor monitor,
         IOptions<IngestOptions> ingest,
+        IOptions<ControlOptions> controle,
         IOptions<ProcessOptions> process,
         IHistoryRecorder history,
         CommandTracker comandos,
@@ -60,6 +61,18 @@ public static class ApiEndpoints
         foreach (var c in comandos.AoTelemetria(status.Controle, status.Telemetria.Timestamp ?? clock.GetUtcNow()))
             await notifier.NotificarComandoAsync(c, ct);
         history.RegistrarTelemetria(dados!, status.Telemetria.Timestamp ?? clock.GetUtcNow()); // não bloqueia nem lança
+
+        // Entrega por fila: o Node-RED só recebe comandos na resposta da telemetria que ele mesmo enviou (conexão de saída).
+        if (controle.Value.Enabled && controle.Value.Delivery == DeliveryModes.Queue)
+        {
+            var entregues = comandos.RetirarParaEntrega();
+            if (entregues.Count > 0)
+            {
+                foreach (var c in entregues) await notifier.NotificarComandoAsync(c, ct);
+                log.LogInformation("{N} comando(s) entregue(s) ao Node-RED na resposta da telemetria", entregues.Count);
+                return Results.Ok(new { status = "ok", comandos = entregues.Select(c => new { id = c.Id, campos = c.Campos }) });
+            }
+        }
         return Results.Ok(new { status = "ok" });
     }
 
@@ -92,6 +105,21 @@ public static class ApiEndpoints
         // O valor exibido como "no CLP" NÃO muda aqui: só a telemetria (lida do CLP) altera o controle.
         var registro = comandos.Registrar(comando!, store.Snapshot().Controle);
         await notifier.NotificarComandoAsync(registro, ct);
+
+        if (control.Value.Delivery == DeliveryModes.Queue)
+        {
+            // Fila: nada é enviado agora. O comando fica "solicitado" até o Node-RED enviar a próxima telemetria e recebê-lo na resposta.
+            return Results.Ok(new
+            {
+                status = "ok",
+                comandoId = registro.Id,
+                estadoComando = registro.Estado,
+                confirmadoPeloClp = false,
+                comando = registro,
+                entrega = "fila",
+                controle = store.Snapshot().Controle
+            });
+        }
 
         var resultado = await nodeRed.EnviarComandoAsync(comando!, ct);
         if (resultado == ResultadoEnvio.Aceito)

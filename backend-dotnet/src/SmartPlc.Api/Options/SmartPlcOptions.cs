@@ -29,6 +29,12 @@ public sealed class IngestOptions
     public string ApiKey { get; set; } = "";
 }
 
+public static class DeliveryModes
+{
+    public const string Push = "push";
+    public const string Queue = "queue";
+}
+
 public sealed class ControlOptions
 {
     public const string Section = "Control";
@@ -36,8 +42,15 @@ public sealed class ControlOptions
     /// <summary>Desligado por padrão: o sistema nasce como supervisório somente leitura.</summary>
     public bool Enabled { get; set; }
 
-    /// <summary>Chave do operador (X-Operator-Key). Provisória até existir login com papéis.</summary>
+    /// <summary>Chave do operador (X-Operator-Key). Só vale com o login desligado; com login, o papel manda.</summary>
     public string OperatorApiKey { get; set; } = "";
+
+    /// <summary>
+    /// Como o comando chega ao Node-RED. "push" (padrão, uso local): o servidor chama o Node-RED. "queue" (nuvem): o servidor
+    /// guarda o comando e o Node-RED o recebe na RESPOSTA da próxima telemetria que enviar. Só a segunda funciona com o servidor
+    /// no Render, porque a conexão sempre parte do Node-RED (o servidor não alcança a máquina dele).
+    /// </summary>
+    public string Delivery { get; set; } = DeliveryModes.Push;
 }
 
 public sealed class NodeRedOptions

@@ -872,7 +872,8 @@
         "y": 280,
         "wires": [
             [
-                "smartplc0000resposta"
+                "smartplc0000resposta",
+                "smartplc0000comandos"
             ]
         ]
     },
@@ -899,7 +900,7 @@
         "type": "function",
         "z": "47cce3c81373f633",
         "name": "PROCESSA-COMANDO",
-        "func": "let p = msg.payload || {};\n\n// 1. Setpoint\nlet msgSetpoint = (p.setpoint !== undefined && p.setpoint !== null) ? { payload: Number(p.setpoint) } : null;\n\n// 2. Modo Manual (Booleano estrito true/false para a variável BOOL do CLP Siemens)\nlet msgModo = null;\nif (p.modoManual !== undefined && p.modoManual !== null) {\n    let eVerdadeiro = (p.modoManual === true || p.modoManual === 1 || p.modoManual === 'true' || p.modoManual === '1');\n    msgModo = { payload: eVerdadeiro }; // Envia obrigatoriamente true ou false\n}\n\n// 3. Válvula Manual\nlet msgValvula = (p.valvulaManual !== undefined && p.valvulaManual !== null) ? { payload: Number(p.valvulaManual) } : null;\n\n// 4. Parâmetros PID\nlet msgKp = (p.kp !== undefined && p.kp !== null) ? { payload: Number(p.kp) } : null;\nlet msgTi = (p.ti !== undefined && p.ti !== null) ? { payload: Number(p.ti) } : null;\nlet msgTd = (p.td !== undefined && p.td !== null) ? { payload: Number(p.td) } : null;\n\n// 5. Confirmação HTTP (Garante que o Express receba a resposta imediatamente)\n// Reaproveita a msg original: só ela carrega msg.res, necessário ao nó \"http response\"\nmsg.payload = { status: \"sucesso\" };\nmsg.statusCode = 200;\nlet msgHttpResponse = msg;\n\nreturn [msgSetpoint, msgModo, msgValvula, msgKp, msgTi, msgTd, msgHttpResponse];",
+        "func": "let p = msg.payload || {};\n\n// 1. Setpoint\nlet msgSetpoint = (p.setpoint !== undefined && p.setpoint !== null) ? { payload: Number(p.setpoint) } : null;\n\n// 2. Modo Manual (Booleano estrito true/false para a variável BOOL do CLP Siemens)\nlet msgModo = null;\nif (p.modoManual !== undefined && p.modoManual !== null) {\n    let eVerdadeiro = (p.modoManual === true || p.modoManual === 1 || p.modoManual === 'true' || p.modoManual === '1');\n    msgModo = { payload: eVerdadeiro }; // Envia obrigatoriamente true ou false\n}\n\n// 3. Válvula Manual\nlet msgValvula = (p.valvulaManual !== undefined && p.valvulaManual !== null) ? { payload: Number(p.valvulaManual) } : null;\n\n// 4. Parâmetros PID\nlet msgKp = (p.kp !== undefined && p.kp !== null) ? { payload: Number(p.kp) } : null;\nlet msgTi = (p.ti !== undefined && p.ti !== null) ? { payload: Number(p.ti) } : null;\nlet msgTd = (p.td !== undefined && p.td !== null) ? { payload: Number(p.td) } : null;\n\n// 5. Confirmação HTTP (Garante que o Express receba a resposta imediatamente)\n// Reaproveita a msg original: só ela carrega msg.res, necessário ao nó \"http response\"\nmsg.payload = { status: \"sucesso\" };\nmsg.statusCode = 200;\nlet msgHttpResponse = msg.res ? msg : null; // comandos vindos da fila (sem requisição HTTP) não têm resposta a enviar\n\nreturn [msgSetpoint, msgModo, msgValvula, msgKp, msgTi, msgTd, msgHttpResponse];",
         "outputs": 7,
         "timeout": 0,
         "noerr": 0,
@@ -1021,5 +1022,25 @@
         "x": 930,
         "y": 280,
         "wires": []
+    },
+    {
+        "id": "smartplc0000comandos",
+        "type": "function",
+        "z": "47cce3c81373f633",
+        "name": "SMARTPLC-COMANDOS",
+        "func": "// Comandos que o SmartPLC na nuvem deixou na fila chegam na RESPOSTA da telemetria que este fluxo enviou\n// (a conexão parte sempre daqui: o servidor não alcança esta máquina). Cada comando vai ao mesmo tratador do /api/comando-clp.\nconst r = msg.payload;\nif (msg.statusCode !== 200 || !r || typeof r !== 'object' || !Array.isArray(r.comandos) || r.comandos.length === 0) { return null; }\n\n// Defesa extra: só os campos conhecidos, com tipo e faixa válidos. O que não passar não vai ao CLP.\nconst faixa = { setpoint: [0, 100], valvulaManual: [0, 100], kp: [0, 1000], ti: [0, 100000], td: [0, 100000] };\nconst saidas = [];\nfor (const c of r.comandos) {\n    const campos = {};\n    const origem = (c && typeof c.campos === 'object' && c.campos) ? c.campos : {};\n    for (const k of Object.keys(faixa)) {\n        if (origem[k] === undefined || origem[k] === null) { continue; }\n        const v = Number(origem[k]);\n        if (Number.isFinite(v) && v >= faixa[k][0] && v <= faixa[k][1]) { campos[k] = v; }\n        else { node.warn('comando ' + (c && c.id) + ': ' + k + ' fora da faixa, ignorado'); }\n    }\n    if (typeof origem.modoManual === 'boolean') { campos.modoManual = origem.modoManual; }\n    if (Object.keys(campos).length > 0) { saidas.push({ payload: campos, comandoId: c.id }); }\n}\nif (saidas.length > 0) { node.warn(saidas.length + ' comando(s) recebido(s) do SmartPLC'); }\nreturn [saidas];",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 930,
+        "y": 340,
+        "wires": [
+            [
+                "9e7744f7d96b3c0f"
+            ]
+        ]
     }
 ]

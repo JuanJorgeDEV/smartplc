@@ -126,7 +126,7 @@ export async function montar(raiz) {
         else if (!podeOperar()) { tom = 'warn'; msg = '<strong>Seu perfil é somente de consulta.</strong> Os campos mostram o que o CLP reporta, mas só operadores e administradores podem enviar comandos.'; }
         else if (c.exigeChaveDeOperador) { tom = 'warn'; msg = '<strong>Comandos exigem uma chave de operador.</strong> Este painel nunca guarda chaves no navegador; ative o login para operar por aqui. Os campos abaixo ficam apenas para consulta.'; }
         else if (comunicacao() !== 'ok') { tom = 'warn'; msg = '<strong>Sem telemetria válida do CLP agora.</strong> Os comandos podem ser recebidos, mas só serão confirmados quando o CLP voltar a reportar.'; }
-        else msg = `<strong>Controle habilitado${sessao.autenticacaoAtiva ? '' : ' (ambiente local)'}.</strong> Cada solicitação pede confirmação e só é dada como aplicada depois que o CLP a reporta.`;
+        else msg = `<strong>Controle habilitado${sessao.autenticacaoAtiva ? '' : ' (ambiente local)'}.</strong> Cada solicitação pede confirmação e só é dada como aplicada depois que o CLP a reporta.${c.entrega === 'fila' ? ' Os comandos seguem por uma fila: o Node-RED os recebe na resposta da próxima telemetria (cerca de 1 s) e, sem ele enviando dados, expiram.' : ''}`;
         b.className = `banner ${tom}`;
         b.innerHTML = msg;
         $('prazo').textContent = String(c?.confirmacaoSegundos ?? 10);

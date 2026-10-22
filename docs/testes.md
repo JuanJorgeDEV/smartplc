@@ -41,17 +41,28 @@ dotnet test --filter "FullyQualifiedName~PostgresIntegration"
 
 Os testes com armazenamento em memória validam a **lógica**; só os de PostgreSQL validam o comportamento do banco. Os payloads são controlados — nenhum deles é evidência de integração com o PLCSIM.
 
-## Estado da última execução (13/10/2026)
+## Estado da última execução (22/10/2026)
 
 | Conjunto | Resultado |
 |---|---|
-| xUnit completo, com PostgreSQL 17.11 em contêiner (`smartplc_test`) | **327 aprovados, 0 falhas, 0 ignorados** |
-| Frontend, unitários (`tests/frontend/unit.test.mjs`) | **24 aprovados** |
-| Frontend, ponta a ponta em Chrome real (`tests/ui/e2e.test.mjs`) | **14 aprovados** (navegação, tanque × telemetria, tema, controle com confirmação, histórico, laboratório completo, integrações e preferências, rolagem horizontal em 4 larguras, acessibilidade básica, console limpo) |
-| Fluxo do Node-RED, código dos nós (`tests/node-red/flow.test.js`) | **16 aprovados** |
+| xUnit completo, com PostgreSQL 17 em contêiner (`smartplc_test`) | **438 aprovados, 0 falhas, 0 ignorados** (inclui login, simulação, fila de comandos, RLS e reinício com sessão válida) |
+| Frontend, unitários (`tests/frontend/unit.test.mjs`) | **22 aprovados** |
+| Frontend, ponta a ponta em Chrome real (`tests/ui/e2e.test.mjs`, servidor sem login) | **16 aprovados**, com entrega direta e também com entrega por fila |
+| Login, ponta a ponta em Chrome real (`tests/ui/auth.e2e.test.mjs`, servidor com login) | **8 aprovados** |
+| Fluxo do Node-RED, código dos nós (`tests/node-red/flow.test.js`) | **22 aprovados** |
 | Express, contrato (`tests/contract/baseline.test.js`) | 12 aprovados (arquivos do Express não foram alterados) |
 
-**Importante:** os testes de interface e as capturas usaram o **simulador do Node-RED** como fonte da telemetria e dos comandos. Eles provam a aplicação, não a integração com o PLCSIM.
+### Como rodar o teste de login
+
+```bash
+# servidor com login ligado, em outra porta, contra o banco de TESTE (cria o administrador inicial)
+Auth__Enabled=true Auth__AdminEmail=admin@teste.local Auth__AdminPassword=<senha-de-teste-forte> \
+  Ingest__ApiKey=chave-local ConnectionStrings__SmartPlc="Host=localhost;Port=5433;Username=postgres;Password=teste;Database=smartplc_dev" \
+  History__MigrateOnStartup=true dotnet run --project backend-dotnet/src/SmartPlc.Api --urls http://localhost:5100
+E2E_EMAIL=admin@teste.local E2E_SENHA=<senha-de-teste-forte> BASE_URL=http://localhost:5100 node --test tests/ui/auth.e2e.test.mjs
+```
+
+Para testar a entrega por fila, suba o backend com `Control__Enabled=true Control__Delivery=queue` e o simulador com `node tools/simulador-nodered.js --entrega=fila`.
 
 ## Como rodar os testes de interface
 
