@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text.Json.Serialization;
 using Microsoft.Extensions.Options;
+using SmartPlc.Api.Auth;
 using SmartPlc.Api.Contracts;
 using SmartPlc.Api.Json;
 using SmartPlc.Api.History;
@@ -64,11 +65,11 @@ public static class LabEndpoints
     public static void MapLabApi(this WebApplication app)
     {
         app.MapGet("/api/experimentos", Listar);
-        app.MapPost("/api/experimentos", Iniciar);
+        app.MapPost("/api/experimentos", Iniciar).RequireAuthorization(Politicas.Operador);
         app.MapGet("/api/experimentos/{id:guid}", Detalhar);
-        app.MapPost("/api/experimentos/{id:guid}/encerrar", Encerrar);
-        app.MapPost("/api/experimentos/{id:guid}/cancelar", Cancelar);
-        app.MapPost("/api/experimentos/{id:guid}/simulacao", ComandarSimulacao);
+        app.MapPost("/api/experimentos/{id:guid}/encerrar", Encerrar).RequireAuthorization(Politicas.Operador);
+        app.MapPost("/api/experimentos/{id:guid}/cancelar", Cancelar).RequireAuthorization(Politicas.Operador);
+        app.MapPost("/api/experimentos/{id:guid}/simulacao", ComandarSimulacao).RequireAuthorization(Politicas.Operador);
     }
 
     private static void ValidarSimulacao(List<CampoErro> erros, SimulacaoRequest? s)

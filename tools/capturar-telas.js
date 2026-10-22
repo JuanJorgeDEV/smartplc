@@ -38,6 +38,9 @@ const ALVOS = [
     ['mobile-390-laboratorio', 'laboratorio', 390, 2, 'dark'],
     ['mobile-390-integracoes', 'integracoes', 390, 2, 'dark'],
     ['mobile-360-visao-geral', 'visao-geral', 360, 2, 'light'],
+    // Login (servidor com Auth__Enabled=true; sem cookie, a tela de entrada aparece)
+    ['desktop-1440-login', 'visao-geral', 1440, 1, 'dark'],
+    ['mobile-390-login', 'visao-geral', 390, 2, 'light'],
     // Laboratório em simulação (rodam em sequência: preparar -> ativa -> revisão; exigem o banco ligado)
     ['desktop-1440-laboratorio-simulacao-preparar', 'laboratorio', 1440, 1, 'dark', "document.querySelector('input[name=fonte][value=simulacao]').click()"],
     ['desktop-1440-laboratorio-simulacao-ativa', 'laboratorio', 1440, 1, 'dark', "(async () => { const w = (ms) => new Promise((r) => setTimeout(r, ms)); document.querySelector('input[name=fonte][value=simulacao]').click(); document.querySelector('#f-iniciar').requestSubmit(); await w(2500); const v = document.querySelector('#sm-vel'); v.value = '10'; v.dispatchEvent(new Event('change', { bubbles: true })); await w(800); document.querySelector('#sm-sp').value = '65'; document.querySelector('[data-ap=sp]').click(); await w(9000); })()"],

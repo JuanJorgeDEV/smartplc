@@ -9,6 +9,7 @@ import { criarTendencia, atualizar, aplicarTema, destruir } from '../charts.js';
 import { aviso, confirmar } from '../ui.js';
 import { rotuloEvento } from './overview.js';
 import * as api from '../api.js';
+import { podeOperar } from '../sessao.js';
 
 export const titulo = 'Laboratório';
 
@@ -33,7 +34,7 @@ const ROTULO_SIM = { SetpointAlterado: 'Setpoint alterado', ModoAlterado: 'Modo 
 const rotuloStatus = { ativa: ['warn', 'Em andamento'], encerrada: ['ok', 'Encerrada'], cancelada: ['off', 'Cancelada'] };
 
 export async function montar(raiz, ctx) {
-    const lab = state.config?.laboratorio;
+    const lab = state.config?.laboratorio ? { ...state.config.laboratorio, escrita: state.config.laboratorio.escrita && podeOperar() } : null;
     if (!lab?.habilitado) {
         raiz.innerHTML = `<div class="vazio"><p class="eyebrow">Laboratório SmartPLC</p><h2 class="display">Laboratório indisponível</h2>
           <p class="lead">As sessões de laboratório são gravadas no banco de dados e o resumo usa o histórico persistido. Sem banco configurado, o servidor não consegue registrar experimentos.</p>
@@ -169,7 +170,7 @@ export async function montar(raiz, ctx) {
             ro.hidden = sim;
             $('sim-params').hidden = !sim;
             if (sim) {
-                aviso_.innerHTML = lab.escrita ? '' : `<p class="banner info" role="status">Neste ambiente a criação de sessões está desabilitada (somente consulta).</p>`;
+                aviso_.innerHTML = lab.escrita ? '' : `<p class="banner info" role="status">A criação de sessões está desabilitada para você ou neste ambiente (somente consulta).</p>`;
                 $('b-iniciar').disabled = !lab.escrita || est.ocupado;
                 return;
             }
@@ -184,7 +185,7 @@ export async function montar(raiz, ctx) {
               <div><dt class="eyebrow">Comunicação</dt><dd>${{ ok: '<span class="tag live">Recebendo</span>', aguardando: '<span class="tag warn">Aguardando</span>', sem_clp: '<span class="tag alarm">Sem CLP</span>', servidor_off: '<span class="tag alarm">Servidor off</span>' }[com]}</dd></div>`;
             let msg = '';
             if (com !== 'ok') msg = `<p class="banner warn" role="status"><strong>Sem telemetria válida do CLP.</strong> Conecte o Node-RED (veja a aba Integrações) e aguarde a primeira leitura, ou escolha a simulação acima.</p>`;
-            else if (!lab.escrita) msg = `<p class="banner info" role="status">Neste ambiente a criação de sessões está desabilitada (somente consulta).</p>`;
+            else if (!lab.escrita) msg = `<p class="banner info" role="status">A criação de sessões está desabilitada para você ou neste ambiente (somente consulta).</p>`;
             else msg = observacaoControle();
             aviso_.innerHTML = msg;
             $('b-iniciar').disabled = com !== 'ok' || !lab.escrita || est.ocupado;

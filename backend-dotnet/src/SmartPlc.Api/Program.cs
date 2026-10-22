@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
+using SmartPlc.Api.Auth;
 using SmartPlc.Api.Endpoints;
 using SmartPlc.Api.History;
 using SmartPlc.Api.Lab;
@@ -65,6 +66,10 @@ builder.Services.AddSingleton<IHistoryRecorder>(sp => sp.GetRequiredService<Hist
 builder.Services.AddHostedService<HistoryWriter>();
 builder.Services.AddHostedService<RetentionService>();
 
+// ---- Login (cookie de sessão). Ligado por padrão fora de Development; exige o banco. ----
+var authHabilitado = AuthSetup.Habilitado(cfg, builder.Environment);
+builder.AddSmartPlcAuth(authHabilitado, connectionString is not null);
+
 builder.Services.AddSignalR().AddJsonProtocol(o =>
     o.PayloadSerializerOptions = new JsonSerializerOptions(JsonSerializerDefaults.Web));
 
@@ -84,8 +89,10 @@ if (!app.Environment.IsDevelopment())
 {
     if (string.IsNullOrEmpty(cfg[$"{IngestOptions.Section}:ApiKey"]))
         throw new InvalidOperationException("Ingest:ApiKey é obrigatória fora de Development.");
-    if (cfg.GetValue<bool>($"{ControlOptions.Section}:Enabled") && string.IsNullOrEmpty(cfg[$"{ControlOptions.Section}:OperatorApiKey"]))
-        throw new InvalidOperationException("Control:OperatorApiKey é obrigatória quando Control:Enabled=true fora de Development.");
+    if (!authHabilitado)
+        app.Logger.LogWarning("Auth:Enabled=false fora de Development: o painel está ABERTO a quem alcançar o servidor, sem login.");
+    if (!authHabilitado && cfg.GetValue<bool>($"{ControlOptions.Section}:Enabled") && string.IsNullOrEmpty(cfg[$"{ControlOptions.Section}:OperatorApiKey"]))
+        throw new InvalidOperationException("Control:OperatorApiKey é obrigatória quando Control:Enabled=true, sem login, fora de Development.");
 }
 else
 {
@@ -108,7 +115,8 @@ else
 
 app.UseCors();
 app.UseDefaultFiles();
-app.UseStaticFiles();
+app.UseSmartPlcAuth(authHabilitado);          // cabeçalhos, arquivos estáticos, origem, login e autorização
+app.MapAuthApi(authHabilitado);
 app.MapSmartPlcApi();
 app.MapHistoryApi();
 app.MapConfigApi();

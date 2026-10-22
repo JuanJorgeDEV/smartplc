@@ -117,3 +117,24 @@ public sealed class ExperimentSession
     /// </summary>
     public string? SerieSimulada { get; set; }
 }
+
+/// <summary>
+/// Usuário do sistema (funcionário). A senha nunca é guardada: só o hash PBKDF2 com sal. O e-mail é guardado em minúsculas e é único.
+/// </summary>
+public sealed class AppUser
+{
+    public Guid Id { get; set; }
+    public string Email { get; set; } = "";
+    public string Nome { get; set; } = "";
+    public string SenhaHash { get; set; } = "";
+    /// <summary>admin | operador | visualizador</summary>
+    public string Papel { get; set; } = "visualizador";
+    public bool Ativo { get; set; } = true;
+    public DateTimeOffset CriadoEm { get; set; }
+    public DateTimeOffset? UltimoLoginEm { get; set; }
+    /// <summary>Tentativas erradas seguidas desde o último acesso bem-sucedido.</summary>
+    public int FalhasConsecutivas { get; set; }
+    public DateTimeOffset? BloqueadoAte { get; set; }
+    /// <summary>Muda quando a senha, o papel ou o estado da conta mudam: derruba as sessões abertas.</summary>
+    public Guid CarimboSeguranca { get; set; } = Guid.NewGuid();
+}

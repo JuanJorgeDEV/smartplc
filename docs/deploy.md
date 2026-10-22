@@ -73,10 +73,12 @@ Backups e limites dependem do plano (conferir no painel). O navegador **nunca** 
 | `ASPNETCORE_ENVIRONMENT` | `Production` (já no Dockerfile) |
 | `ConnectionStrings__SmartPlc` | string do session pooler |
 | `Ingest__ApiKey` | chave longa e aleatória (obrigatória: a aplicação **não sobe** sem ela em Production) |
+| `Auth__AdminEmail`, `Auth__AdminPassword` | e-mail e senha do **primeiro administrador** (criado só se ainda não houver nenhum usuário). Preencha no painel do Render, nunca no repositório. Depois do primeiro acesso, troque a senha e apague `Auth__AdminPassword`. Ver [autenticacao.md](autenticacao.md) |
+| `Auth__Enabled` | não precisa definir: fora de Development o login vem **ligado** (e exige o banco) |
 | `Control__Enabled` | `false` (mantenha: controle remoto desligado na nuvem) |
 | `Cors__AllowedOrigins__0` | só se o dashboard for servido de outra origem |
 | `History__SampleIntervalSeconds`, `History__MinimumLevelChange` | opcionais |
-| `Lab__WriteEnabled` | **`false` enquanto não houver autenticação** (criar/encerrar sessões grava no banco; o CLP não é tocado) |
+| `Lab__WriteEnabled` | `true`: com login, só operadores e administradores criam/encerram sessões (grava no banco; o CLP não é tocado) |
 | `Integration__ShowAddresses` | `false` se não quiser divulgar os endereços S7 na aba Integrações |
 | `Command__ConfirmationSeconds` | opcional (padrão 10) |
 
@@ -105,4 +107,4 @@ O Node-RED local envia `POST https://<app>.onrender.com/api/telemetria` com o ca
 **Supabase** (nesta ordem, no SQL Editor): `db/001_esquema_inicial.sql` (agora inclui `experiment_sessions`), `db/002_seguranca_rls.sql` (RLS nas 5 tabelas), `db/retencao-pg_cron.sql`. Conferir o `rls_ativo` e o teste da chave anon descritos no próprio script.
 **Render:** Web Service Docker (`backend-dotnet/Dockerfile`), health check `/health`, variáveis da tabela acima, `Control__Enabled=false`, `Lab__WriteEnabled=false`, `Ingest__ApiKey` forte. O frontend vai junto (é `wwwroot`).
 **Node-RED local:** `SMARTPLC_URL=https://<app>.onrender.com/api/telemetria` e `SMARTPLC_API_KEY` (fluxo `node-red/flows.smartplc-dotnet.json`).
-**Atenção:** o painel não tem login. Com `Control__Enabled=false` e `Lab__WriteEnabled=false` ele é somente leitura para quem abrir a URL; qualquer um que a conheça verá a telemetria e o histórico. Se isso não for aceitável, decida a autenticação antes de publicar.
+**Login:** todas as rotas, exceto `/health`, a tela de entrada e `POST /api/telemetria` (que usa a chave de ingestão), exigem sessão. Sem `Auth__AdminEmail`/`Auth__AdminPassword` no primeiro deploy, ninguém consegue entrar: defina-os antes.

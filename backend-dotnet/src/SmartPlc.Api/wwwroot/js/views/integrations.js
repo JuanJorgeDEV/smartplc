@@ -1,6 +1,9 @@
 // Integrações: o que está CONFIGURADO (vem do servidor) separado do que está VERIFICADO em tempo real.
 import { state, on, comunicacao, idadeAtualSeg } from '../store.js';
 import { casasDe } from '../prefs.js';
+import { sessao, ehAdmin } from '../sessao.js';
+import * as usuarios from './users.js';
+import { abrirTrocaDeSenha, sairAgora } from '../conta.js';
 import { num, hora, idade, esc } from '../format.js';
 
 export const titulo = 'Integrações';
@@ -15,6 +18,11 @@ const COMUNICACAO = {
 export async function montar(raiz) {
     raiz.innerHTML = `
 <div class="integ">
+  ${sessao.autenticacaoAtiva && sessao.usuario ? `<section aria-labelledby="i-conta">
+    <div class="sec-head"><h2 id="i-conta" class="eyebrow">Minha conta</h2></div>
+    <p class="small"><strong>${esc(sessao.usuario.nome)}</strong> · ${esc(sessao.usuario.papelRotulo)} · <span class="mono">${esc(sessao.usuario.email)}</span></p>
+    <div class="lab-acoes"><button type="button" class="btn" id="b-conta-senha">Trocar senha</button><button type="button" class="btn" id="b-conta-sair">Sair</button></div>
+  </section>` : ''}
   <section aria-labelledby="i-res">
     <div class="sec-head"><h2 id="i-res" class="eyebrow">Como funciona</h2></div>
     <p class="small">O Node-RED lê o CLP e envia os valores a este servidor. O servidor transmite ao painel em tempo real e grava o histórico no banco.</p>
@@ -41,7 +49,11 @@ export async function montar(raiz) {
       <thead><tr><th scope="col">Variável</th><th scope="col">Endereço S7</th><th scope="col">Tipo</th><th scope="col" class="num">Valor atual</th><th scope="col">Un.</th><th scope="col">Leitura</th></tr></thead>
       <tbody id="tb-var"></tbody></table></div>
   </section>
+  ${sessao.autenticacaoAtiva && ehAdmin() ? usuarios.html() : ''}
 </div>`;
+    if (sessao.autenticacaoAtiva && ehAdmin()) usuarios.montar(raiz);
+    raiz.querySelector('#b-conta-senha')?.addEventListener('click', abrirTrocaDeSenha);
+    raiz.querySelector('#b-conta-sair')?.addEventListener('click', sairAgora);
 
     const $ = (id) => raiz.querySelector(`#${id}`);
 

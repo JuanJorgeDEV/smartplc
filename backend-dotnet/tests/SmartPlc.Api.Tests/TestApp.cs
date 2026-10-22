@@ -7,6 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Time.Testing;
+using SmartPlc.Api.Auth;
 using SmartPlc.Api.Contracts;
 using SmartPlc.Api.History;
 using SmartPlc.Api.Lab;
@@ -54,13 +55,18 @@ public sealed class TestApp : WebApplicationFactory<Program>
     private readonly bool _notifierReal;
     private readonly IHistoryStore? _historyStore;
     private readonly IExperimentStore? _experimentStore;
+    private readonly IUserStore? _userStore;
+
+    /// <summary>Roda como ambiente de Produção (cookie Secure, regras de partida estritas).</summary>
+    public bool Producao { get; set; }
 
     public FakeTimeProvider Clock { get; } = new(DateTimeOffset.Parse("2026-01-01T12:00:00Z"));
     public FakeNodeRedClient NodeRed { get; } = new();
     public RecordingNotifier Notifier { get; } = new();
 
-    public TestApp(Dictionary<string, string?>? config = null, bool notifierReal = false, IHistoryStore? historyStore = null, IExperimentStore? experimentStore = null)
+    public TestApp(Dictionary<string, string?>? config = null, bool notifierReal = false, IHistoryStore? historyStore = null, IExperimentStore? experimentStore = null, IUserStore? userStore = null)
     {
+        _userStore = userStore;
         _experimentStore = experimentStore;
         _config = config ?? [];
         _notifierReal = notifierReal;
@@ -86,6 +92,23 @@ public sealed class TestApp : WebApplicationFactory<Program>
     public HistoryPipeline Pipeline => Services.GetRequiredService<HistoryPipeline>();
     public HistoryStatus HistStatus => Services.GetRequiredService<HistoryStatus>();
 
+    /// <summary>Login LIGADO, com usuários e Laboratório em memória. Cookies e chaves de sessão ficam na memória do teste.</summary>
+    public static TestApp ComLogin(InMemoryUserStore usuarios, Dictionary<string, string?>? extra = null, IExperimentStore? experimentos = null)
+    {
+        var cfg = new Dictionary<string, string?>
+        {
+            ["Auth:Enabled"] = "true",
+            ["Auth:PersistKeysInDatabase"] = "false",
+            ["Auth:Pbkdf2Iterations"] = "1000",          // testes rápidos; a produção usa 600 000
+            ["ConnectionStrings:SmartPlc"] = "Host=127.0.0.1;Port=1;Database=teste_dummy;Username=x;Password=x",   // só liga os repositórios; nenhum é usado de verdade
+            ["History:RetryDelayMilliseconds"] = "0",
+            ["Control:Enabled"] = "true",
+            ["Ingest:ApiKey"] = "chave-de-teste"
+        };
+        foreach (var (k, v) in extra ?? []) cfg[k] = v;
+        return new TestApp(cfg, historyStore: new InMemoryHistoryStore(), experimentStore: experimentos ?? new InMemoryExperimentStore(), userStore: usuarios);
+    }
+
     public static TestApp ComControle(Dictionary<string, string?>? extra = null)
     {
         var cfg = new Dictionary<string, string?> { ["Control:Enabled"] = "true" };
@@ -96,6 +119,7 @@ public sealed class TestApp : WebApplicationFactory<Program>
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         foreach (var (k, v) in _config) builder.UseSetting(k, v);
+        if (Producao) builder.UseEnvironment("Production");
 
         builder.ConfigureServices(s =>
         {
@@ -121,6 +145,12 @@ public sealed class TestApp : WebApplicationFactory<Program>
             {
                 s.RemoveAll<IExperimentStore>();
                 s.AddSingleton(_experimentStore);
+            }
+
+            if (_userStore is not null)
+            {
+                s.RemoveAll<IUserStore>();
+                s.AddSingleton(_userStore);
             }
 
             s.RemoveAll<IHostedService>();

@@ -22,6 +22,12 @@ services:
       # Aplica as migrations (esquema + RLS) na subida. Depois da primeira subida pode voltar para false.
       - key: History__MigrateOnStartup
         value: "true"
+      # Primeiro administrador (criado só se ainda não existir nenhum usuário). Preenchidos à mão no painel: contêm senha.
+      # Depois do primeiro acesso, troque a senha no painel e apague Auth__AdminPassword.
+      - key: Auth__AdminEmail
+        sync: false
+      - key: Auth__AdminPassword
+        sync: false
       # Comandos ao CLP: DESLIGADOS na nuvem. O Render não alcança o Node-RED local e ainda não existe a fila de comandos.
       - key: Control__Enabled
         value: "false"

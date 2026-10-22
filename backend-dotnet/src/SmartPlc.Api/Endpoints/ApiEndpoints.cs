@@ -1,6 +1,8 @@
 using System.Security.Cryptography;
 using System.Text;
 using Microsoft.Extensions.Options;
+using Microsoft.AspNetCore.Authorization;
+using SmartPlc.Api.Auth;
 using SmartPlc.Api.Contracts;
 using SmartPlc.Api.History;
 using SmartPlc.Api.Options;
@@ -16,10 +18,11 @@ public static class ApiEndpoints
 
     public static void MapSmartPlcApi(this WebApplication app)
     {
-        app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
+        app.MapGet("/health", () => Results.Ok(new { status = "ok" })).AllowAnonymous();
         app.MapGet("/api/status", (ProcessStateStore store) => Results.Ok(store.Snapshot()));
-        app.MapPost("/api/telemetria", ReceberTelemetria);
-        app.MapPost("/api/controle", EnviarControle);
+        // Node-RED não usa cookie: a defesa aqui é a chave de ingestão (X-Api-Key).
+        app.MapPost("/api/telemetria", ReceberTelemetria).AllowAnonymous();
+        app.MapPost("/api/controle", EnviarControle).RequireAuthorization(Politicas.Operador);
         app.MapHub<TelemetriaHub>(TelemetriaHub.Rota);
     }
 
@@ -68,13 +71,15 @@ public static class ApiEndpoints
         INodeRedClient nodeRed,
         CommandTracker comandos,
         IOptions<ControlOptions> control,
+        AuthRuntime auth,
         ILogger<Program> log,
         CancellationToken ct)
     {
         if (!control.Value.Enabled)
             return Results.Json(ErroResponse.De("controle desabilitado neste ambiente (modo supervisório)"), statusCode: StatusCodes.Status403Forbidden);
 
-        if (!ChaveValida(req, HeaderOperador, control.Value.OperatorApiKey))
+        // Com login ligado, quem manda é o papel (operador ou administrador). A chave de operador só vale sem login.
+        if (!auth.Habilitado && !ChaveValida(req, HeaderOperador, control.Value.OperatorApiKey))
             return Results.Json(ErroResponse.De("chave de operador inválida ou ausente"), statusCode: StatusCodes.Status401Unauthorized);
 
         var leitura = await PayloadReader.LerAsync<ControleRequest>(req.Body, ct);

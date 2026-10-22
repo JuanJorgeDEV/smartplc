@@ -46,7 +46,7 @@ public static class ConfigEndpoints
     {
         // Somente o que é seguro divulgar: nenhuma chave, string de conexão ou IP.
         app.MapGet("/api/config", (IOptions<ControlOptions> controle, IOptions<ProcessOptions> processo, IOptions<TelemetryOptions> tel,
-            IOptions<HistoryOptions> hist, IHistoryStore historico, IOptions<LabOptions> lab, IExperimentStore experimentos, IOptions<CommandOptions> comando) =>
+            IOptions<HistoryOptions> hist, IHistoryStore historico, IOptions<LabOptions> lab, IExperimentStore experimentos, IOptions<CommandOptions> comando, SmartPlc.Api.Auth.AuthRuntime auth) =>
         {
             var historicoOn = hist.Value.Enabled && historico.Habilitado;
             return Results.Ok(new
@@ -54,7 +54,7 @@ public static class ConfigEndpoints
                 controle = new
                 {
                     habilitado = controle.Value.Enabled,
-                    exigeChaveDeOperador = !string.IsNullOrEmpty(controle.Value.OperatorApiKey),
+                    exigeChaveDeOperador = !auth.Habilitado && !string.IsNullOrEmpty(controle.Value.OperatorApiKey),
                     confirmacaoSegundos = comando.Value.ConfirmationSeconds,
                     limites = new
                     {

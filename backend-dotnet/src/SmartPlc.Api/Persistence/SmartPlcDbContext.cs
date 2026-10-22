@@ -1,13 +1,18 @@
+using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
 namespace SmartPlc.Api.Persistence;
 
-public sealed class SmartPlcDbContext(DbContextOptions<SmartPlcDbContext> options) : DbContext(options)
+public sealed class SmartPlcDbContext(DbContextOptions<SmartPlcDbContext> options) : DbContext(options), IDataProtectionKeyContext
 {
     public DbSet<TelemetrySample> TelemetrySamples => Set<TelemetrySample>();
     public DbSet<ProcessEvent> ProcessEvents => Set<ProcessEvent>();
     public DbSet<ControlCommand> ControlCommands => Set<ControlCommand>();
     public DbSet<ExperimentSession> ExperimentSessions => Set<ExperimentSession>();
+    public DbSet<AppUser> AppUsers => Set<AppUser>();
+
+    /// <summary>Chaves do cookie de sessão. No Render o disco some a cada reinício; guardadas aqui, as sessões sobrevivem a ele.</summary>
+    public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -43,6 +48,19 @@ public sealed class SmartPlcDbContext(DbContextOptions<SmartPlcDbContext> option
             e.Property(x => x.Detalhe).HasMaxLength(500);
             e.HasIndex(x => x.SolicitadoEm);
         });
+
+        b.Entity<AppUser>(e =>
+        {
+            e.ToTable("app_users");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Email).HasMaxLength(200);
+            e.Property(x => x.Nome).HasMaxLength(80);
+            e.Property(x => x.SenhaHash).HasMaxLength(300);
+            e.Property(x => x.Papel).HasMaxLength(20);
+            e.HasIndex(x => x.Email).IsUnique();
+        });
+
+        b.Entity<DataProtectionKey>().ToTable("data_protection_keys");
 
         b.Entity<ExperimentSession>(e =>
         {

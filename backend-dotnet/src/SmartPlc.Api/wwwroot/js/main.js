@@ -1,6 +1,9 @@
 // Inicialização: tema, navegação por hash, faixa de estado, alarmes e carga inicial.
 import { state, on, comunicacao, idadeAtualSeg, reconhecerAlarmes, carregarConfig, carregarStatus, carregarComandos, iniciarRelogio, avaliar } from './store.js';
 import { conectar } from './live.js';
+import * as api from './api.js';
+import { carregar as carregarSessao, sessao, sessaoExpirou } from './sessao.js';
+import { mostrarLogin, iniciarConta } from './conta.js';
 import { iniciarTermos } from './ui.js';
 import { hora, idade } from './format.js';
 
@@ -106,6 +109,17 @@ async function iniciar() {
     $('btn-tema-m').addEventListener('click', alternarTema);
     $('btn-reconhecer').addEventListener('click', () => reconhecerAlarmes());
     iniciarTermos();
+
+    // Login primeiro: sem sessão (e com login ligado), nada do painel é carregado.
+    api.definirAoExpirar(sessaoExpirou);
+    window.addEventListener('smartplc:sessao-expirada', async () => { await mostrarLogin({ expirada: true }); location.reload(); });
+    if (!(await carregarSessao())) {
+        document.querySelector('.app').hidden = true;
+        document.body.insertAdjacentHTML('beforeend', '<p class="note" role="alert" style="padding:24px">Não foi possível falar com o servidor. Recarregue a página.</p>');
+        return;
+    }
+    if (sessao.autenticacaoAtiva && !sessao.autenticado) await mostrarLogin();
+    iniciarConta();
 
     on('conexao', atualizarFaixa);
     on('status', atualizarFaixa);

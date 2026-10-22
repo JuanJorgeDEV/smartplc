@@ -86,7 +86,7 @@ public class PostgresIntegrationTests(PostgresFixture fx)
     public async Task Migrations_ligam_RLS_e_retiram_privilegios_da_Data_API()
     {
         await using var db = fx.NovoContexto();
-        var tabelas = new[] { "telemetry_samples", "process_events", "control_commands", "experiment_sessions", "__EFMigrationsHistory" };
+        var tabelas = new[] { "telemetry_samples", "process_events", "control_commands", "experiment_sessions", "__EFMigrationsHistory", "app_users", "data_protection_keys" };
 
         foreach (var t in tabelas)
         {

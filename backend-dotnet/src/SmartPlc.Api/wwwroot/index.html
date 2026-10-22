@@ -30,6 +30,29 @@
 <body>
     <a class="skip" href="#conteudo">Ir para o conteúdo</a>
 
+    <section id="tela-login" class="login" aria-labelledby="login-titulo" hidden>
+        <div class="login-cartao">
+            <div class="login-marca">
+                <svg class="marca" viewBox="0 0 50 48" width="40" height="38" aria-hidden="true">
+                    <path d="M15 4V44H39V4" fill="none" stroke="currentColor" stroke-width="3.5" />
+                    <rect x="15" y="25" width="24" height="19" fill="currentColor" />
+                    <path d="M17 14H47" stroke="currentColor" stroke-width="2.5" stroke-dasharray="4 3" />
+                    <path d="M4 44H11M7 34H11M7 24H11M4 14H11M7 4H11" stroke="currentColor" stroke-width="1.5" />
+                </svg>
+                <span class="eyebrow">SmartPLC · TQ-101</span>
+            </div>
+            <p class="display login-titulo" id="login-titulo" role="heading" aria-level="1">Entrar</p>
+            <p class="small" id="login-aviso" role="status"></p>
+            <form id="f-login" novalidate>
+                <div class="field"><label for="login-email">E-mail</label><input class="input" id="login-email" type="email" autocomplete="username" inputmode="email" maxlength="200" autocapitalize="none" spellcheck="false"></div>
+                <div class="field"><label for="login-senha">Senha</label><input class="input" id="login-senha" type="password" autocomplete="current-password" maxlength="128"></div>
+                <p class="error" id="login-erro" role="alert"></p>
+                <button type="submit" class="btn primary" id="login-entrar">Entrar</button>
+            </form>
+            <p class="note">Acesso restrito à equipe. Para criar ou recuperar um acesso, fale com o administrador.</p>
+        </div>
+    </section>
+
     <div class="app">
         <aside class="rail">
             <div class="brand">
@@ -56,6 +79,14 @@
             </nav>
 
             <div class="rail-foot">
+                <div class="rail-conta" id="rail-conta" hidden>
+                    <p class="conta-nome" id="conta-nome"></p>
+                    <p class="eyebrow" id="conta-papel"></p>
+                    <div class="conta-acoes">
+                        <button type="button" class="btn small" id="btn-senha">Senha</button>
+                        <button type="button" class="btn small" id="btn-sair">Sair</button>
+                    </div>
+                </div>
                 <p class="rail-modo eyebrow" id="rail-modo">Modo —</p>
                 <button type="button" class="btn small" id="btn-tema" aria-label="Alternar tema claro e escuro">Tema</button>
             </div>
@@ -102,6 +133,22 @@
             <button type="button" class="btn" data-no>Cancelar</button>
             <button type="button" class="btn primary" data-ok>Confirmar</button>
         </div>
+    </dialog>
+
+    <dialog id="dlg-senha" aria-labelledby="dlg-senha-titulo">
+        <form id="f-senha" novalidate>
+            <div class="dlg-body">
+                <h2 class="title" id="dlg-senha-titulo">Trocar a senha</h2>
+                <div class="field"><label for="sn-atual">Senha atual</label><input class="input" id="sn-atual" type="password" autocomplete="current-password" maxlength="128"></div>
+                <div class="field"><label for="sn-nova">Nova senha</label><input class="input" id="sn-nova" type="password" autocomplete="new-password" maxlength="128"><span class="hint">Pelo menos 10 caracteres.</span></div>
+                <div class="field"><label for="sn-conf">Repita a nova senha</label><input class="input" id="sn-conf" type="password" autocomplete="new-password" maxlength="128"></div>
+                <p class="error" id="sn-erro" role="alert"></p>
+            </div>
+            <div class="dlg-actions">
+                <button type="button" class="btn" id="sn-cancelar">Cancelar</button>
+                <button type="submit" class="btn primary" id="sn-salvar">Salvar</button>
+            </div>
+        </form>
     </dialog>
 
     <noscript><p style="padding:24px">Este aplicativo precisa de JavaScript.</p></noscript>

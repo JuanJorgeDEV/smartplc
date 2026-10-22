@@ -9,16 +9,21 @@ public static class HistoryEndpoints
 {
     public static void MapHistoryApi(this WebApplication app)
     {
-        app.MapGet("/health/ready", (IHistoryStore store, HistoryStatus s, IOptions<HistoryOptions> o) => Results.Ok(new
-        {
-            status = "ok",
-            historico = new
-            {
-                habilitado = o.Value.Enabled && store.Habilitado,
-                s.Enfileirados, s.AmostrasGravadas, s.EventosGravados, s.Duplicados,
-                s.DescartadosFilaCheia, s.PerdidosAposFalhas, s.Falhas, s.UltimoErro, s.UltimaGravacaoEm
-            }
-        }));
+        // Aberto para verificações de saúde, mas o detalhe (incluindo o texto do último erro do banco) só vai para quem fez login.
+        app.MapGet("/health/ready", (HttpContext ctx, IHistoryStore store, HistoryStatus s, IOptions<HistoryOptions> o) =>
+            ctx.User.Identity?.IsAuthenticated == true
+                ? Results.Ok(new
+                {
+                    status = "ok",
+                    historico = new
+                    {
+                        habilitado = o.Value.Enabled && store.Habilitado,
+                        s.Enfileirados, s.AmostrasGravadas, s.EventosGravados, s.Duplicados,
+                        s.DescartadosFilaCheia, s.PerdidosAposFalhas, s.Falhas, s.UltimoErro, s.UltimaGravacaoEm
+                    }
+                })
+                : Results.Ok(new { status = "ok", historico = new { habilitado = o.Value.Enabled && store.Habilitado, saudavel = s.Falhas == 0 } }))
+            .AllowAnonymous();
 
         app.MapGet("/api/historico", (HttpRequest req, IHistoryStore store, IOptions<HistoryOptions> o, TimeProvider clock, ILogger<Program> log, CancellationToken ct) =>
             Consultar(req, store, o.Value, clock, log, ct, async (de, ate, limite, apos) =>

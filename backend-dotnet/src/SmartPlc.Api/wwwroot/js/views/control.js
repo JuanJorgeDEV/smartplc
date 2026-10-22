@@ -5,6 +5,7 @@ import { num, hora, esc } from '../format.js';
 import { termo } from '../glossary.js';
 import { aviso, confirmar } from '../ui.js';
 import * as api from '../api.js';
+import { sessao, podeOperar } from '../sessao.js';
 
 export const titulo = 'Controle';
 
@@ -112,7 +113,7 @@ export async function montar(raiz) {
     let desejado = null;                    // modo escolhido na tela (true = manual)
     let ocupado = false;
 
-    const habilitado = () => !!cfg()?.habilitado && !cfg()?.exigeChaveDeOperador;
+    const habilitado = () => !!cfg()?.habilitado && !cfg()?.exigeChaveDeOperador && podeOperar();
     const temTelemetria = () => state.status.telemetria.timestamp !== null;
 
     // ---------- Banner de modo ----------
@@ -122,9 +123,10 @@ export async function montar(raiz) {
         let tom = 'info', msg;
         if (!c) { tom = 'warn'; msg = 'Não foi possível ler a configuração do servidor.'; }
         else if (!c.habilitado) msg = '<strong>Modo somente leitura.</strong> Os comandos estão desabilitados neste ambiente. Os campos abaixo mostram o que o CLP reporta, mas nada é enviado.';
-        else if (c.exigeChaveDeOperador) { tom = 'warn'; msg = '<strong>Comandos exigem autenticação de operador.</strong> Este painel ainda não oferece login e nunca guarda a chave no navegador. Os campos abaixo ficam apenas para consulta.'; }
+        else if (!podeOperar()) { tom = 'warn'; msg = '<strong>Seu perfil é somente de consulta.</strong> Os campos mostram o que o CLP reporta, mas só operadores e administradores podem enviar comandos.'; }
+        else if (c.exigeChaveDeOperador) { tom = 'warn'; msg = '<strong>Comandos exigem uma chave de operador.</strong> Este painel nunca guarda chaves no navegador; ative o login para operar por aqui. Os campos abaixo ficam apenas para consulta.'; }
         else if (comunicacao() !== 'ok') { tom = 'warn'; msg = '<strong>Sem telemetria válida do CLP agora.</strong> Os comandos podem ser recebidos, mas só serão confirmados quando o CLP voltar a reportar.'; }
-        else msg = '<strong>Controle habilitado (ambiente local).</strong> Cada solicitação pede confirmação e só é dada como aplicada depois que o CLP a reporta.';
+        else msg = `<strong>Controle habilitado${sessao.autenticacaoAtiva ? '' : ' (ambiente local)'}.</strong> Cada solicitação pede confirmação e só é dada como aplicada depois que o CLP a reporta.`;
         b.className = `banner ${tom}`;
         b.innerHTML = msg;
         $('prazo').textContent = String(c?.confirmacaoSegundos ?? 10);
@@ -223,8 +225,8 @@ export async function montar(raiz) {
     }
 
     function mensagemFalha(r) {
-        if (r.status === 401) return 'o servidor exige autenticação de operador, que este painel não oferece.';
-        if (r.status === 403) return 'comandos desabilitados neste ambiente.';
+        if (r.status === 401) return 'sua sessão terminou ou o servidor exige uma chave de operador; entre novamente.';
+        if (r.status === 403) return r.data?.mensagem ? `${r.erro}.` : 'seu perfil não permite enviar comandos.';
         if (r.status === 0) return `${r.erro}.`;
         return `${r.erro}.`;
     }

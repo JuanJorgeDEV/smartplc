@@ -1,3 +1,4 @@
+using SmartPlc.Api.Auth;
 using SmartPlc.Api.History;
 using SmartPlc.Api.Lab;
 using SmartPlc.Api.Persistence;
@@ -138,4 +139,38 @@ public sealed class InMemoryExperimentStore : IExperimentStore
         SetpointFinal = s.SetpointFinal, ValvulaFinal = s.ValvulaFinal, ModoManualFinal = s.ModoManualFinal, Observacoes = s.Observacoes,
         Fonte = s.Fonte, SerieSimulada = s.SerieSimulada
     };
+}
+
+public sealed class InMemoryUserStore : IUserStore
+{
+    public bool Habilitado => true;
+    public bool FalharSempre { get; set; }
+    public List<AppUser> Usuarios { get; } = [];
+
+    private void Checar() { if (FalharSempre) throw new InvalidOperationException("banco indisponível (simulado)"); }
+    private static AppUser Copia(AppUser u) => new()
+    {
+        Id = u.Id, Email = u.Email, Nome = u.Nome, SenhaHash = u.SenhaHash, Papel = u.Papel, Ativo = u.Ativo, CriadoEm = u.CriadoEm,
+        UltimoLoginEm = u.UltimoLoginEm, FalhasConsecutivas = u.FalhasConsecutivas, BloqueadoAte = u.BloqueadoAte, CarimboSeguranca = u.CarimboSeguranca
+    };
+
+    public Task<int> ContarAsync(CancellationToken ct) { Checar(); return Task.FromResult(Usuarios.Count); }
+    public Task<AppUser?> PorEmailAsync(string email, CancellationToken ct) { Checar(); return Task.FromResult(Usuarios.FirstOrDefault(u => u.Email == email) is { } x ? Copia(x) : null); }
+    public Task<AppUser?> PorIdAsync(Guid id, CancellationToken ct) { Checar(); return Task.FromResult(Usuarios.FirstOrDefault(u => u.Id == id) is { } x ? Copia(x) : null); }
+    public Task<IReadOnlyList<AppUser>> ListarAsync(CancellationToken ct) { Checar(); return Task.FromResult<IReadOnlyList<AppUser>>(Usuarios.Select(Copia).ToList()); }
+    public Task CriarAsync(AppUser u, CancellationToken ct)
+    {
+        Checar();
+        if (Usuarios.Any(x => x.Email == u.Email)) throw new UserConflictException(u.Email);
+        Usuarios.Add(Copia(u));
+        return Task.CompletedTask;
+    }
+    public Task AtualizarAsync(AppUser u, CancellationToken ct)
+    {
+        Checar();
+        var i = Usuarios.FindIndex(x => x.Id == u.Id);
+        if (i < 0) throw new InvalidOperationException("usuário inexistente");
+        Usuarios[i] = Copia(u);
+        return Task.CompletedTask;
+    }
 }
