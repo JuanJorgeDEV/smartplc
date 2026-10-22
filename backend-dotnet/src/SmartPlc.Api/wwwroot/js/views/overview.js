@@ -67,7 +67,7 @@ const SINOTICO = () => `
 const TIPOS_EVENTO = {
     NivelAlto: 'Nível alto', NivelAltoNormalizado: 'Nível alto normalizado', NivelBaixo: 'Nível baixo', NivelBaixoNormalizado: 'Nível baixo normalizado',
     ComunicacaoPerdida: 'Comunicação perdida', ComunicacaoRestabelecida: 'Comunicação restabelecida',
-    SetpointAlterado: 'Setpoint alterado (lido do CLP)', ModoAlterado: 'Modo alterado (lido do CLP)', PidAlterado: 'PID alterado (lido do CLP)'
+    SetpointAlterado: 'Setpoint alterado (lido do CLP)', ModoAlterado: 'Modo alterado (lido do CLP)', PidAlterado: 'PID alterado (lido do CLP)', PerturbacaoSimulada: 'Dreno alterado (simulação)'
 };
 export const rotuloEvento = (t) => TIPOS_EVENTO[t] ?? t;
 const sevEvento = (t) => (/Normalizado|Restabelecida/.test(t) ? 'ok' : /Alto|Baixo|Perdida/.test(t) ? 'alarm' : 'info');
@@ -190,12 +190,10 @@ export async function montar(raiz) {
             `<div class="ro ro-${c}"><dt class="eyebrow">${esc(rotuloVar(c, padrao))}</dt><dd><span class="num ro-v" data-ro="${c}">${textoValor(c)}</span><span class="ro-un">${unidade(c)}</span></dd></div>`).join('');
 
         const extra = [['modoManual', 'Modo de operação'], ['kp', 'Kp'], ['ti', 'Ti'], ['td', 'Td'], ['valvulaManual', 'Abertura manual']].filter(([c]) => p.variaveis[c].destaque);
-        const ult = idadeAtualSeg();
         $('ro-list').className = `ro-list${velho ? ' is-stale' : ''}`;
         $('ro-list').innerHTML = extra.map(([c, padrao]) =>
             `<div><dt class="eyebrow">${esc(rotuloVar(c, padrao))}</dt><dd class="num">${textoValor(c)}${c === 'modoManual' ? '' : ` <span class="muted">${unidade(c)}</span>`}</dd></div>`).join('')
-            + `<div><dt class="eyebrow">Comunicação</dt><dd>${{ ok: '<span class="tag live">Recebendo</span>', aguardando: '<span class="tag warn">Aguardando telemetria</span>', sem_clp: '<span class="tag alarm">Sem comunicação com o CLP</span>', servidor_off: '<span class="tag alarm">Servidor desconectado</span>' }[com]}</dd></div>`
-            + `<div><dt class="eyebrow">Última leitura válida</dt><dd class="num">${ult === null ? '—' : `${hora(Date.now() - ult * 1000)} <span class="muted">(${idade(ult)})</span>`}</dd></div>`;
+            + `<div><dt class="eyebrow">Comunicação</dt><dd>${{ ok: '<span class="tag live">Recebendo</span>', aguardando: '<span class="tag warn">Aguardando telemetria</span>', sem_clp: '<span class="tag alarm">Sem comunicação com o CLP</span>', servidor_off: '<span class="tag alarm">Servidor desconectado</span>' }[com]}</dd></div>`;
     }
 
     // ---------- Tendência (memória desta aba) ----------

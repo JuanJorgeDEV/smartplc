@@ -38,6 +38,10 @@ const ALVOS = [
     ['mobile-390-laboratorio', 'laboratorio', 390, 2, 'dark'],
     ['mobile-390-integracoes', 'integracoes', 390, 2, 'dark'],
     ['mobile-360-visao-geral', 'visao-geral', 360, 2, 'light'],
+    // Laboratório em simulação (rodam em sequência: preparar -> ativa -> revisão; exigem o banco ligado)
+    ['desktop-1440-laboratorio-simulacao-preparar', 'laboratorio', 1440, 1, 'dark', "document.querySelector('input[name=fonte][value=simulacao]').click()"],
+    ['desktop-1440-laboratorio-simulacao-ativa', 'laboratorio', 1440, 1, 'dark', "(async () => { const w = (ms) => new Promise((r) => setTimeout(r, ms)); document.querySelector('input[name=fonte][value=simulacao]').click(); document.querySelector('#f-iniciar').requestSubmit(); await w(2500); const v = document.querySelector('#sm-vel'); v.value = '10'; v.dispatchEvent(new Event('change', { bubbles: true })); await w(800); document.querySelector('#sm-sp').value = '65'; document.querySelector('[data-ap=sp]').click(); await w(9000); })()"],
+    ['desktop-1440-laboratorio-simulacao-revisao', 'laboratorio', 1440, 1, 'dark', "(async () => { const w = (ms) => new Promise((r) => setTimeout(r, ms)); await w(1500); document.querySelector('#b-encerrar').click(); await w(500); document.querySelector('#dlg-confirmar [data-ok]').click(); await w(2500); })()"],
     // estados degradados (use -- filtro): 'sem-comunicacao' = telemetria parada; 'semdados-*' = servidor sem telemetria, banco e comandos
     ['desktop-1440-sem-comunicacao', 'visao-geral', 1440, 1, 'dark'],
     ['semdados-desktop-1440-visao-geral', 'visao-geral', 1440, 1, 'dark'],
@@ -85,7 +89,7 @@ function conectar(url) {
     const cdp = await conectar(chrome.ws);
     try {
         await cdp.enviar('Page.enable');
-        for (const [nome, rota, largura, escala, tema] of ALVOS) {
+        for (const [nome, rota, largura, escala, tema, preparo] of ALVOS) {
             if (filtro && !(filtro.startsWith('=') ? nome === filtro.slice(1) : nome.includes(filtro))) continue; // '=nome' = igualdade exata
             const movel = largura < 600;
             await cdp.enviar('Emulation.setDeviceMetricsOverride', { width: largura, height: 900, deviceScaleFactor: escala, mobile: movel });
@@ -93,6 +97,7 @@ function conectar(url) {
             const rotaFinal = rota === 'laboratorio' && process.env.SESSAO_ID ? `laboratorio?sessao=${process.env.SESSAO_ID}` : rota; // abre a revisão de uma sessão
             await cdp.enviar('Page.navigate', { url: `${base}/?tema=${tema}#/${rotaFinal}` });
             await dormir(espera);
+            if (preparo) await cdp.enviar('Runtime.evaluate', { expression: preparo, awaitPromise: true });
             const { result } = await cdp.enviar('Runtime.evaluate', { expression: 'Math.max(document.documentElement.scrollHeight, document.body.scrollHeight)', returnByValue: true });
             const altura = Math.min(Math.ceil(result.value), 6000);
             await cdp.enviar('Emulation.setDeviceMetricsOverride', { width: largura, height: altura, deviceScaleFactor: escala, mobile: movel });

@@ -62,8 +62,8 @@ test('paraInputLocal gera o formato do datetime-local', () => {
     assert.match(fmt.paraInputLocal(Date.UTC(2026, 0, 1, 15, 4)), /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/);
 });
 
-// ---------------- prefs ----------------
-beforeEach(() => { memoria.clear(); prefsMod.restaurar(); });
+// ---------------- prefs (apresentação fixa) ----------------
+beforeEach(() => { memoria.clear(); });
 
 test('prefs: padrão destaca PV, SP, CV e modo; PID fica de fora', () => {
     const p = prefsMod.prefs();
@@ -71,40 +71,13 @@ test('prefs: padrão destaca PV, SP, CV e modo; PID fica de fora', () => {
     assert.deepEqual(['kp', 'ti', 'td', 'valvulaManual'].map((c) => p.variaveis[c].destaque), [false, false, false, false]);
 });
 
-test('prefs: salvar, ler de novo e restaurar', () => {
-    const p = JSON.parse(JSON.stringify(prefsMod.prefs()));
-    p.variaveis.nivel.nome = 'Nível do TQ';
-    p.variaveis.nivel.casas = 2;
-    p.variaveis.kp.destaque = true;
-    p.indicadores.alarmes = false;
-    prefsMod.salvar(p);
-    assert.equal(prefsMod.nomeDe('nivel', 'padrão'), 'Nível do TQ');
-    assert.equal(prefsMod.casasDe('nivel'), 2);
-    assert.equal(JSON.parse(memoria.get('smartplc.prefs.v1')).indicadores.alarmes, false);
-
-    prefsMod.restaurar();
+test('prefs: a apresentação é fixa e nada é gravado no navegador', () => {
     assert.equal(prefsMod.nomeDe('nivel', 'padrão'), 'padrão');
     assert.equal(prefsMod.casasDe('nivel'), 1);
-    assert.equal(memoria.has('smartplc.prefs.v1'), false);
-});
-
-test('prefs: valores inválidos salvos são ignorados', () => {
-    memoria.set('smartplc.prefs.v1', JSON.stringify({ variaveis: { nivel: { nome: 'x'.repeat(100), casas: 9, destaque: 'sim' } }, indicadores: { tendencia: 'talvez' } }));
-    prefsMod.restaurar();
-    memoria.set('smartplc.prefs.v1', JSON.stringify({ variaveis: { nivel: { nome: 'x'.repeat(100), casas: 9, destaque: 'sim' } } }));
-    // força releitura do armazenamento
-    prefsMod.salvar(JSON.parse(memoria.get('smartplc.prefs.v1')));
-    const p = prefsMod.prefs();
-    assert.equal(p.variaveis.nivel.nome.length, 40);       // cortado
-    assert.equal(p.variaveis.nivel.casas, 1);              // 9 é inválido: mantém o padrão
-    assert.equal(p.variaveis.nivel.destaque, true);        // não booleano: mantém o padrão
-});
-
-test('prefs: localStorage indisponível não quebra', () => {
-    const original = globalThis.localStorage;
-    globalThis.localStorage = { getItem() { throw new Error('bloqueado'); }, setItem() { throw new Error('bloqueado'); }, removeItem() { throw new Error('bloqueado'); } };
-    assert.doesNotThrow(() => { prefsMod.restaurar(); prefsMod.salvar(prefsMod.prefs()); });
-    globalThis.localStorage = original;
+    assert.equal(prefsMod.casasDe('kp'), 2);
+    assert.equal(prefsMod.casasDe('inexistente'), 1);
+    assert.equal(memoria.size, 0);
+    assert.equal(typeof prefsMod.salvar, 'undefined');
 });
 
 // ---------------- store: comunicação, amostras e alarmes ----------------

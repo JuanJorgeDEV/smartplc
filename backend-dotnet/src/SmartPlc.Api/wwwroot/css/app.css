@@ -118,8 +118,12 @@ textarea.input { min-height: 64px; padding: 10px 12px; font: 400 17px/25px var(-
 .t-haste { stroke: var(--ln); stroke-width: 1.5; }
 
 .ov-ind { display: grid; gap: 4px; }
-.ro-main { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0 28px; margin-bottom: 20px; }
-.ro { padding: 14px 0 16px; border-top: 1px solid var(--hairline); }
+/* PV sozinho em cima; SP e CV lado a lado abaixo, bem separados, para não se confundirem. */
+.ro-main { display: grid; grid-template-columns: 1fr 1fr; gap: 0; margin-bottom: 28px; }
+.ro { padding: 20px 0 24px; border-top: 1px solid var(--hairline); }
+.ro-nivel { grid-column: 1 / -1; padding-bottom: 32px; }
+.ro-setpoint { padding-right: 32px; }
+.ro-valvula { padding-left: 32px; border-left: 1px solid var(--hairline); }
 .ro dd { display: flex; align-items: baseline; gap: 6px; margin-top: 8px; }
 .ro-v { font-size: 40px; line-height: 1; letter-spacing: -0.02em; }
 .ro-nivel .ro-v { font-size: clamp(52px, 5.4vw, 76px); color: var(--signal-ink); }
@@ -319,3 +323,18 @@ th.item { font: 400 16px/23px var(--font-sans); text-transform: none; letter-spa
   .t-sp text { font-size: 19px; }
   .t-pv { font-size: 50px; }
 }
+
+/* ---- Laboratório: simulação ---- */
+.tag.sim { color: var(--warn); } .tag.sim::before { background: transparent; border: 1.5px solid var(--warn); }
+.fonte { border: 0; padding: 0; margin: 0; display: grid; gap: 10px; }
+.fonte legend { padding: 0; margin-bottom: 6px; }
+.fonte-op { align-items: flex-start; padding: 12px 14px; border: 1px solid var(--hairline); }
+.fonte-op:has(input:checked) { border-color: var(--ink); background: var(--paper-raised); }
+.fonte-op input { margin-top: 5px; }
+.sim-params { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px 24px; }
+.sim-ctl { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 22px 36px; padding: 18px 0; border-top: 1px solid var(--hairline); border-bottom: 1px solid var(--hairline); }
+.sim-grupo { display: grid; gap: 8px; align-content: start; }
+.sim-linha { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.sim-linha .input { max-width: 130px; }
+.sim-linha .input.mini { max-width: 84px; }
+.sim-linha input[type="range"] { width: 100%; max-width: 260px; }

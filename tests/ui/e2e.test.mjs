@@ -231,34 +231,72 @@ test('laboratório: inicia, observa, encerra e revisa uma sessão com valores re
     assert.equal(await avaliar(`!!document.getElementById('cv-lab')`), true);
 });
 
-test('integrações: 8 variáveis, rótulos "configurado/verificado", personalização persiste e restaura', async () => {
-    await abrir('integracoes');
-    await esperar(`document.querySelectorAll('#tb-var tr').length === 8`, 8000, '8 variáveis');
-    assert.ok(await avaliar(`document.querySelectorAll('#tb-con .badge.verified').length >= 3`));
-    assert.ok(await avaliar(`document.querySelectorAll('#tb-con .badge:not(.verified)').length >= 3`));
-    const enderecos = await avaliar(`[...document.querySelectorAll('#tb-var tr td:nth-child(3)')].map((e) => e.textContent.trim())`);
-    assert.deepEqual(enderecos, ['DB3,REAL0', 'DB4,REAL0', 'DB5,REAL0', 'DB5,X8.0', 'DB5,REAL10', 'DB5,REAL14', 'DB5,REAL18', 'DB5,REAL22']);
-    assert.ok(await avaliar(`[...document.querySelectorAll('#tb-var [data-valor]')].every((e) => /\\d|—|verdadeiro|falso/.test(e.textContent))`));
+test('laboratório em simulação: inicia sem CLP, aceita alterações, registra o degrau e fecha o resumo', async () => {
+    await abrir('laboratorio');
+    await esperar(`!!document.getElementById('f-iniciar')`, 10000, 'formulário de preparação');
+    await clicar('input[name="fonte"][value="simulacao"]');
+    await esperar(`document.getElementById('sim-params').hidden === false && document.getElementById('lab-ro').hidden === true`, 3000, 'parâmetros da simulação visíveis');
+    await definir('#sp-nivel', 25);
+    await enviarForm('#f-iniciar');
+    await esperar(`!!document.querySelector('.lab-cab2 .tag.sim') && !!document.getElementById('f-sim')`, 10000, 'palco da simulação');
 
-    await definir('#nm-nivel', 'Nível do TQ-101');
-    await definir('#cs-nivel', '2');
-    await abrir('visao-geral');                                      // nova navegação: a preferência vem do localStorage
-    await esperar(`document.getElementById('ro-main')?.textContent.includes('Nível do TQ-101')`, 8000, 'nome amigável na visão geral');
-    await esperar(`/\\d,\\d\\d/.test(document.querySelector('[data-ro="nivel"]').textContent)`, 8000, 'duas casas decimais');
+    // O processo real (simulador de Node-RED) segue independente: a simulação não mexe no estado do CLP.
+    const antes = await api('/api/status');
+    await definir('#sm-vel', 10);
+    await esperar(`document.getElementById('lab-vivo')?.textContent.includes('10×')`, 8000, 'velocidade 10× aplicada');
+    await definir('#sm-sp', 60);
+    await clicar('[data-ap="sp"]');
+    await esperar(`document.getElementById('deteccao').textContent.includes('Registrado')`, 8000, 'mudança de setpoint registrada');
+    const pv = () => avaliar(`Number(document.querySelectorAll('#lab-vivo > div')[1]?.querySelector('dd')?.textContent.replace(/[^\\d,]/g, '').replace(',', '.'))`);
+    await esperar(`Number(document.querySelectorAll('#lab-vivo > div')[1]?.querySelector('dd')?.textContent.replace(/[^\\d,]/g, '').replace(',', '.')) > 45`, 60000, 'PV subindo em direção ao novo SP');
+    assert.ok((await pv()) > 45);
 
-    await abrir('integracoes');
-    await clicar('#b-restaurar');
-    await abrir('visao-geral');
-    await esperar(`document.getElementById('ro-main')?.textContent.includes('Nível do tanque (PV)')`, 8000, 'nome padrão restaurado');
+    // modo manual: a abertura passa a ser a da pessoa
+    await clicar('#sm-modo');
+    await esperar(`document.getElementById('sm-modo').textContent.includes('automático')`, 8000, 'modo manual aplicado');
+    assert.equal(await avaliar(`document.getElementById('sm-vm').disabled`), false);
+    // valores inválidos são recusados pelo servidor e explicados
+    await definir('#sm-sp', 150);
+    await clicar('[data-ap="sp"]');
+    await esperar(`document.getElementById('e-sim').textContent.length > 0`, 5000, 'erro de validação exibido');
+
+    await clicar('#b-encerrar');
+    await confirmarDialogo();
+    await esperar(`document.querySelector('.lab-cab2 .tag.sim') && /Dados simulados/.test(document.body.innerText) && !!document.getElementById('b-nova')`, 15000, 'revisão da sessão simulada');
+    const resumo = await texto('.lab-palco');
+    assert.match(resumo, /Duração/);
+    assert.match(resumo, /Amostras/);
+    assert.ok(/Tempo até 63 %/.test(resumo) || /Métricas não calculadas/.test(resumo));
+    assert.equal(await avaliar(`!!document.getElementById('cv-lab')`), true);
+    assert.equal(await avaliar(`[...document.querySelectorAll('#sessoes .sessao')].some((e) => e.textContent.includes('Simulação'))`), true);
+
+    const depois = await api('/api/status');
+    assert.equal(depois.corpo.telemetria.plcOnline, true);
+    assert.equal(depois.corpo.controle.setpoint, antes.corpo.controle.setpoint, 'a simulação não pode alterar o setpoint do CLP');
 });
 
-test('personalização: ocultar alarmes na visão geral é respeitado', async () => {
+test('integrações: 8 variáveis, endereços do fluxo e nenhuma personalização', async () => {
     await abrir('integracoes');
-    await clicar('[data-ind="alarmes"]');
+    await esperar(`document.querySelectorAll('#tb-var tr').length === 8`, 8000, '8 variáveis');
+    const enderecos = await avaliar(`[...document.querySelectorAll('#tb-var tr td:nth-child(2)')].map((e) => e.textContent.trim())`);
+    assert.deepEqual(enderecos, ['DB3,REAL0', 'DB4,REAL0', 'DB5,REAL0', 'DB5,X8.0', 'DB5,REAL10', 'DB5,REAL14', 'DB5,REAL18', 'DB5,REAL22']);
+    assert.ok(await avaliar(`[...document.querySelectorAll('#tb-var [data-valor]')].every((e) => /\\d|—|manual|automático/.test(e.textContent))`));
+    assert.equal(await avaliar(`document.querySelectorAll('#tb-var input, #tb-var select').length`), 0, 'a tabela é somente leitura');
+    assert.equal(await avaliar(`!!document.getElementById('b-restaurar') || /Apresentação|armazenamento local/.test(document.body.innerText)`), false);
+});
+
+test('visão geral: não repete a "última leitura válida" (a faixa de estado já mostra)', async () => {
     await abrir('visao-geral');
-    await esperar(`document.getElementById('sec-alarmes').hidden === true`, 5000, 'seção de alarmes oculta');
-    await abrir('integracoes');
-    await clicar('#b-restaurar');
+    await esperar(`document.getElementById('ro-main')?.textContent.includes('Nível')`, 8000, 'indicadores');
+    assert.equal(await avaliar(`/Última leitura válida/i.test(document.getElementById('ro-list').textContent)`), false);
+});
+
+test('visão geral: PV, SP e CV não ficam colados (SP e CV afastados, PV em linha própria)', async () => {
+    await abrir('visao-geral', { largura: 1440, altura: 900 });
+    await esperar(`document.querySelector('.ro-setpoint') && document.querySelector('.ro-valvula')`, 8000, 'indicadores');
+    const g = await avaliar(`(() => { const r = (s) => document.querySelector(s).getBoundingClientRect(); const pv = r('.ro-nivel'), sp = r('.ro-setpoint'), cv = r('.ro-valvula'); return { pvBaixo: pv.bottom, spTopo: sp.top, spDir: sp.right, cvEsq: cv.left }; })()`);
+    assert.ok(g.spTopo >= g.pvBaixo - 1, 'SP abaixo do PV');
+    assert.ok(g.cvEsq >= g.spDir - 1, 'CV à direita do SP');
 });
 
 test('responsivo: nenhuma tela tem rolagem horizontal em 360, 390, 768 e 1440 px', async () => {
