@@ -35,12 +35,12 @@ public sealed record SessionDto(
     bool PlcOnlineInicial,
     double? NivelInicial, double? SetpointInicial, double? ValvulaInicial, bool? ModoManualInicial,
     double? NivelFinal, double? SetpointFinal, double? ValvulaFinal, bool? ModoManualFinal,
-    string? Observacoes)
+    string? Observacoes, string Fonte)
 {
     public static SessionDto De(ExperimentSession s) => new(
         s.Id, s.Nome, s.Tipo, ExperimentTypes.Rotulo(s.Tipo), s.Status, s.InicioEm, s.FimEm, s.PlcOnlineInicial,
         s.NivelInicial, s.SetpointInicial, s.ValvulaInicial, s.ModoManualInicial,
-        s.NivelFinal, s.SetpointFinal, s.ValvulaFinal, s.ModoManualFinal, s.Observacoes);
+        s.NivelFinal, s.SetpointFinal, s.ValvulaFinal, s.ModoManualFinal, s.Observacoes, s.Fonte);
 }
 
 public sealed record ValueRange(double? Inicial, double? Final, double? Min, double? Max);

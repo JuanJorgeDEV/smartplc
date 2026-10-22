@@ -261,3 +261,28 @@ BEGIN
 END $EF$;
 COMMIT;
 
+START TRANSACTION;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20261022035954_AddSimulatedExperiments') THEN
+    ALTER TABLE experiment_sessions ADD "Fonte" character varying(20) NOT NULL DEFAULT 'clp';
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20261022035954_AddSimulatedExperiments') THEN
+    ALTER TABLE experiment_sessions ADD "SerieSimulada" jsonb;
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20261022035954_AddSimulatedExperiments') THEN
+    INSERT INTO "__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+    VALUES ('20261022035954_AddSimulatedExperiments', '10.0.12');
+    END IF;
+END $EF$;
+COMMIT;
+

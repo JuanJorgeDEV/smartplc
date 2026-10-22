@@ -135,6 +135,7 @@ public sealed class InMemoryExperimentStore : IExperimentStore
         Id = s.Id, Nome = s.Nome, Tipo = s.Tipo, Status = s.Status, InicioEm = s.InicioEm, FimEm = s.FimEm,
         PlcOnlineInicial = s.PlcOnlineInicial, NivelInicial = s.NivelInicial, SetpointInicial = s.SetpointInicial,
         ValvulaInicial = s.ValvulaInicial, ModoManualInicial = s.ModoManualInicial, NivelFinal = s.NivelFinal,
-        SetpointFinal = s.SetpointFinal, ValvulaFinal = s.ValvulaFinal, ModoManualFinal = s.ModoManualFinal, Observacoes = s.Observacoes
+        SetpointFinal = s.SetpointFinal, ValvulaFinal = s.ValvulaFinal, ModoManualFinal = s.ModoManualFinal, Observacoes = s.Observacoes,
+        Fonte = s.Fonte, SerieSimulada = s.SerieSimulada
     };
 }

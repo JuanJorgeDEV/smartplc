@@ -33,6 +33,8 @@ builder.Services.Configure<CommandOptions>(cfg.GetSection(CommandOptions.Section
 builder.Services.Configure<LabOptions>(cfg.GetSection(LabOptions.Section));
 builder.Services.Configure<IntegrationOptions>(cfg.GetSection(IntegrationOptions.Section));
 builder.Services.AddSingleton<CommandTracker>();
+builder.Services.AddSingleton<SimulationService>();
+builder.Services.AddHostedService(sp => sp.GetRequiredService<SimulationService>());
 
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<ProcessStateStore>();

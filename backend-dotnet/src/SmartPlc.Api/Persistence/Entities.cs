@@ -46,8 +46,10 @@ public enum ProcessEventType
     SetpointAlterado,
     /// <summary>Modo (auto/manual) LIDO do CLP mudou.</summary>
     ModoAlterado,
-    /// <summary>Kp, Ti ou Td LIDOS do CLP mudaram.</summary>
-    PidAlterado
+    /// <summary>Kp, Ti ou Td LIDOS do CLP mudaram (ou, numa sessão simulada, foram alterados pela pessoa).</summary>
+    PidAlterado,
+    /// <summary>Somente em sessões SIMULADAS do Laboratório: a pessoa abriu ou fechou o "dreno" de perturbação.</summary>
+    PerturbacaoSimulada
 }
 
 /// <summary>Fato observado na telemetria. Baixo volume, retenção longa.</summary>
@@ -105,4 +107,13 @@ public sealed class ExperimentSession
     public bool? ModoManualFinal { get; set; }
 
     public string? Observacoes { get; set; }
+
+    /// <summary>clp | simulacao. Sessões simuladas nunca usam o histórico do CLP.</summary>
+    public string Fonte { get; set; } = "clp";
+
+    /// <summary>
+    /// Só em sessões simuladas encerradas: a série produzida (jsonb, ver <c>SimulatedSeries</c>). Em sessões do CLP fica nula,
+    /// porque a telemetria é consultada no histórico pela janela da sessão.
+    /// </summary>
+    public string? SerieSimulada { get; set; }
 }

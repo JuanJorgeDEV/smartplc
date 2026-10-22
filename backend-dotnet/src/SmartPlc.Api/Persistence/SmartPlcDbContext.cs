@@ -52,6 +52,8 @@ public sealed class SmartPlcDbContext(DbContextOptions<SmartPlcDbContext> option
             e.Property(x => x.Tipo).HasMaxLength(30);
             e.Property(x => x.Status).HasMaxLength(20);
             e.Property(x => x.Observacoes).HasMaxLength(500);
+            e.Property(x => x.Fonte).HasMaxLength(20).HasDefaultValue("clp");
+            e.Property(x => x.SerieSimulada).HasColumnType("jsonb");
             e.HasIndex(x => x.InicioEm);
             // Garante, no banco, no máximo UMA sessão ativa (também protege contra duas requisições simultâneas).
             e.HasIndex(x => x.Status).IsUnique().HasFilter("\"Status\" = 'ativa'");

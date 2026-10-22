@@ -63,6 +63,13 @@ namespace SmartPlc.Api.Persistence.Migrations
                     b.Property<DateTimeOffset?>("FimEm")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("Fonte")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasDefaultValue("clp");
+
                     b.Property<DateTimeOffset>("InicioEm")
                         .HasColumnType("timestamp with time zone");
 
@@ -89,6 +96,9 @@ namespace SmartPlc.Api.Persistence.Migrations
 
                     b.Property<bool>("PlcOnlineInicial")
                         .HasColumnType("boolean");
+
+                    b.Property<string>("SerieSimulada")
+                        .HasColumnType("jsonb");
 
                     b.Property<double?>("SetpointFinal")
                         .HasColumnType("double precision");

@@ -42,6 +42,44 @@ public class PostgresExperimentTests(PostgresFixture fx)
     }
 
     [PostgresFact]
+    public async Task Sessao_sem_fonte_informada_vale_clp_e_sessao_simulada_guarda_a_serie_em_jsonb()
+    {
+        await Limpar();
+        var loja = Loja();
+        var comum = Nova(ExperimentStatuses.Encerrada, 0);
+        await loja.CriarAsync(comum, default);
+        Assert.Equal("clp", (await loja.ObterAsync(comum.Id, default))!.Fonte);
+        Assert.Null((await loja.ObterAsync(comum.Id, default))!.SerieSimulada);
+
+        // Série de verdade, produzida pelo simulador e passada pelo mesmo caminho de gravação/leitura da API.
+        var svc = new SimulationService(TimeProvider.System, Microsoft.Extensions.Logging.Abstractions.NullLogger<SimulationService>.Instance);
+        var id = Guid.NewGuid();
+        svc.Iniciar(id, T0, new SimulationParameters(30, 30, 2, 30, 0, 1));
+        svc.Avancar(5);
+        svc.Comandar(id, new SimulationCommand(Setpoint: 60));
+        svc.Avancar(5);
+        var snap = svc.Encerrar(id)!;
+
+        var sim = Nova(ExperimentStatuses.Encerrada, 100);
+        sim.Fonte = ExperimentSources.Simulacao;
+        sim.SerieSimulada = SimulatedSeries.Serializar(snap.Inicio, snap.Amostras, snap.Eventos, false);
+        await loja.CriarAsync(sim, default);
+
+        var lida = await loja.ObterAsync(sim.Id, default);
+        Assert.Equal(ExperimentSources.Simulacao, lida!.Fonte);
+        var (amostras, eventos, _) = SimulatedSeries.Ler(lida.InicioEm, lida.SerieSimulada);
+        Assert.Equal(snap.Amostras.Count, amostras.Count);
+        Assert.Single(eventos);
+
+        // O banco entende o documento como jsonb de verdade (consultável), não como texto solto.
+        await using var db = fx.NovoContexto();
+        var n = await db.Database
+            .SqlQuery<int>($"SELECT jsonb_array_length(\"SerieSimulada\"->'p') AS \"Value\" FROM experiment_sessions WHERE \"Id\" = {sim.Id}")
+            .SingleAsync();
+        Assert.Equal(snap.Amostras.Count, n);
+    }
+
+    [PostgresFact]
     public async Task Grava_e_le_a_sessao_com_todos_os_campos_e_instantes_em_UTC()
     {
         await Limpar();
