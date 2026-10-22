@@ -53,6 +53,7 @@ if (connectionString is not null)
     builder.Services.AddDbContextFactory<SmartPlcDbContext>(o => o.UseNpgsql(connectionString));
     builder.Services.AddSingleton<IHistoryStore, EfHistoryStore>();
     builder.Services.AddSingleton<IExperimentStore, EfExperimentStore>();
+    if (historyOptions.MigrateOnStartup) builder.Services.AddHostedService<SchemaMigrator>();
 }
 else
 {
@@ -102,12 +103,7 @@ else
 {
     app.Logger.LogInformation("Histórico ligado: {Banco}", DbConnection.Describe(connectionString));
     if (historyOptions.MigrateOnStartup)
-    {
-        app.Logger.LogWarning("History:MigrateOnStartup=true: aplicando migrations no banco acima.");
-        var fabrica = app.Services.GetRequiredService<IDbContextFactory<SmartPlcDbContext>>();
-        await using var db = await fabrica.CreateDbContextAsync();
-        await db.Database.MigrateAsync();
-    }
+        app.Logger.LogWarning("History:MigrateOnStartup=true: as migrations serão aplicadas em segundo plano no banco acima.");
 }
 
 app.UseCors();
