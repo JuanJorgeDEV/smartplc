@@ -23,11 +23,11 @@ Relatório em linguagem simples, de 22/10/2026. Parte do que **já funciona** (c
 | Variável | Endereço no CLP | O que é |
 |---|---|---|
 | `nivel` | `DB3,REAL0` | nível do tanque, 0–100 % |
-| `valvula` | `DB4,REAL0` | saída do controlador (CV), 0–100 % |
+| `valvula` | `DB4,REAL0` | saída do controlador (MV), 0–100 % |
 | `setpoint` | `DB5,REAL0` | nível desejado (SP) |
 | `modoManual` | `DB5,X8.0` | 1 = manual, 0 = automático |
-| `valvulaManual` | `DB5,REAL10` | abertura manual |
-| `kp`, `ti`, `td` | `DB5,REAL14 / 18 / 22` | parâmetros do PID |
+| `valvulaManual` | `DB5,REAL22` | abertura manual |
+| `kp`, `ti`, `td` | `DB5,REAL10 / 14 / 18` | parâmetros do PID |
 
 ### A mensagem que o Node-RED envia (a cada ~1 s)
 

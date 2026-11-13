@@ -65,7 +65,7 @@ test('paraInputLocal gera o formato do datetime-local', () => {
 // ---------------- prefs (apresentação fixa) ----------------
 beforeEach(() => { memoria.clear(); });
 
-test('prefs: padrão destaca PV, SP, CV e modo; PID fica de fora', () => {
+test('prefs: padrão destaca PV, SP, MV e modo; PID fica de fora', () => {
     const p = prefsMod.prefs();
     assert.deepEqual(['nivel', 'valvula', 'setpoint', 'modoManual'].map((c) => p.variaveis[c].destaque), [true, true, true, true]);
     assert.deepEqual(['kp', 'ti', 'td', 'valvulaManual'].map((c) => p.variaveis[c].destaque), [false, false, false, false]);
@@ -208,7 +208,7 @@ test('eventos e comandos notificam os ouvintes e permitem cancelar a inscrição
 
 // ---------------- glossário ----------------
 test('glossário: termos obrigatórios existem e têm explicação curta', () => {
-    for (const k of ['clp', 'processo', 'pv', 'sp', 'cv', 'malha', 'pid', 'kp', 'ti', 'td', 'manual', 'automatico', 'sobreelevacao', 'estabilizacao']) {
+    for (const k of ['clp', 'processo', 'pv', 'sp', 'mv', 'malha', 'pid', 'kp', 'ti', 'td', 'manual', 'automatico', 'sobreelevacao', 'estabilizacao']) {
         assert.ok(glos.TERMOS[k], `falta o termo ${k}`);
         assert.ok(glos.TERMOS[k][1].length < 260, `explicação longa demais: ${k}`);
     }

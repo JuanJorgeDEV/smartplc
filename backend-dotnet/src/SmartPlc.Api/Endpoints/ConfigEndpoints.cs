@@ -33,7 +33,7 @@ public static class ConfigEndpoints
     public static readonly IReadOnlyList<VariavelCatalogo> Catalogo =
     [
         new("nivel", "Nivel_Tanque", "Nível do tanque (PV)", "DB3,REAL0", "REAL", "%", "leitura", "Valor medido do processo."),
-        new("valvula", "Valvula_Output", "Saída da válvula (CV)", "DB4,REAL0", "REAL", "%", "leitura", "Abertura da válvula calculada pelo controlador."),
+        new("valvula", "Valvula_Output", "Saída da válvula (MV)", "DB4,REAL0", "REAL", "%", "leitura", "Abertura da válvula calculada pelo controlador."),
         new("setpoint", "setpoint", "Setpoint (SP)", "DB5,REAL0", "REAL", "%", "leitura e escrita", "Nível desejado."),
         new("modoManual", "modo_manual", "Modo manual", "DB5,X8.0", "BOOL", "", "leitura e escrita", "Verdadeiro = manual; falso = automático."),
         new("kp", "kp", "Ganho proporcional (Kp)", "DB5,REAL10", "REAL", "", "leitura e escrita", "Intensidade da reação ao erro."),

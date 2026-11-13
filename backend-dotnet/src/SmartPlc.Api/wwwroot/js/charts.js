@@ -40,7 +40,7 @@ let registrado = false;
 function registrar() { if (!registrado && typeof Chart !== 'undefined') { Chart.register(marcadores); registrado = true; } }
 
 /**
- * Gráfico PV/SP (e CV opcional). Dados: [{x: ms, y}]. Mantém uma única instância; atualize com atualizar().
+ * Gráfico PV/SP (e MV opcional). Dados: [{x: ms, y}]. Mantém uma única instância; atualize com atualizar().
  */
 export function criarTendencia(canvas, { cv = false, ariaLabel = 'Gráfico de tendência' } = {}) {
     if (typeof Chart === 'undefined') return null;
@@ -57,7 +57,7 @@ export function criarTendencia(canvas, { cv = false, ariaLabel = 'Gráfico de te
             datasets: [
                 { label: 'PV', data: [], borderColor: c.pv, borderWidth: 2, pointRadius: 0, tension: 0, parsing: false, normalized: true, order: 1 },
                 { label: 'SP', data: [], borderColor: c.sp, borderWidth: 1.5, borderDash: [6, 4], pointRadius: 0, stepped: 'before', parsing: false, normalized: true, order: 2 },
-                { label: 'CV', data: [], borderColor: c.cv, borderWidth: 1.25, pointRadius: 0, tension: 0, parsing: false, normalized: true, hidden: !cv, order: 3 }
+                { label: 'MV', data: [], borderColor: c.cv, borderWidth: 1.25, pointRadius: 0, tension: 0, parsing: false, normalized: true, hidden: !cv, order: 3 }
             ]
         },
         options: {

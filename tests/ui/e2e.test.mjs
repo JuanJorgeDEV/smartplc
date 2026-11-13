@@ -291,12 +291,12 @@ test('visão geral: não repete a "última leitura válida" (a faixa de estado j
     assert.equal(await avaliar(`/Última leitura válida/i.test(document.getElementById('ro-list').textContent)`), false);
 });
 
-test('visão geral: PV, SP e CV não ficam colados (SP e CV afastados, PV em linha própria)', async () => {
+test('visão geral: PV, SP e MV não ficam colados (SP e MV afastados, PV em linha própria)', async () => {
     await abrir('visao-geral', { largura: 1440, altura: 900 });
     await esperar(`document.querySelector('.ro-setpoint') && document.querySelector('.ro-valvula')`, 8000, 'indicadores');
     const g = await avaliar(`(() => { const r = (s) => document.querySelector(s).getBoundingClientRect(); const pv = r('.ro-nivel'), sp = r('.ro-setpoint'), cv = r('.ro-valvula'); return { pvBaixo: pv.bottom, spTopo: sp.top, spDir: sp.right, cvEsq: cv.left }; })()`);
     assert.ok(g.spTopo >= g.pvBaixo - 1, 'SP abaixo do PV');
-    assert.ok(g.cvEsq >= g.spDir - 1, 'CV à direita do SP');
+    assert.ok(g.cvEsq >= g.spDir - 1, 'MV à direita do SP');
 });
 
 test('responsivo: nenhuma tela tem rolagem horizontal em 360, 390, 768 e 1440 px', async () => {

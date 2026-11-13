@@ -24,7 +24,7 @@ const TIPOS = {
     automaticoManual: {
         numero: '2', nome: 'Automático versus manual',
         objetivo: 'Compreender a diferença entre o controle automático e a operação manual.',
-        intro: `No modo ${termo('automatico', 'automático')}, o ${termo('pid', 'PID')} decide a abertura da válvula (${termo('cv', 'CV')}). No ${termo('manual', 'manual')}, uma pessoa a define e a ${termo('pv', 'PV')} deixa de ser regulada.`,
+        intro: `No modo ${termo('automatico', 'automático')}, o ${termo('pid', 'PID')} decide a abertura da válvula (${termo('mv', 'MV')}). No ${termo('manual', 'manual')}, uma pessoa a define e a ${termo('pv', 'PV')} deixa de ser regulada.`,
         passos: ['Preparação', 'Iniciar', 'Mudar o modo', 'Observar', 'Encerrar', 'Revisar'],
         acao: 'Mude o modo'
     }
@@ -157,7 +157,7 @@ export async function montar(raiz, ctx) {
           </form>
           ${est.erro ? `<p class="error" role="alert">${esc(est.erro)}</p>` : ''}
           <details class="saiba"><summary>O que será registrado</summary>
-            <p class="note">Com o <strong>CLP</strong>, o servidor grava o instante, o tipo e os valores de PV, SP, CV, modo e estado da comunicação recebidos naquele momento; o resumo usa as amostras já persistidas no histórico.
+            <p class="note">Com o <strong>CLP</strong>, o servidor grava o instante, o tipo e os valores de PV, SP, MV, modo e estado da comunicação recebidos naquele momento; o resumo usa as amostras já persistidas no histórico.
             Na <strong>simulação</strong>, o servidor grava os valores do modelo, uma amostra por segundo simulado e cada alteração que você fizer. Esses dados ficam marcados como simulação e não entram no histórico do CLP.</p></details>`;
 
         const ro = $('lab-ro');
@@ -180,7 +180,7 @@ export async function montar(raiz, ctx) {
             ro.className = com === 'ok' ? 'lab-ro' : 'lab-ro is-stale';
             ro.innerHTML = `<div><dt class="eyebrow">${termo('pv', 'PV')} nível</dt><dd class="num">${tem ? num(tl.nivel, 1) : '—'} <span class="muted">%</span></dd></div>
               <div><dt class="eyebrow">${termo('sp', 'SP')} setpoint</dt><dd class="num">${tem ? num(c.setpoint, 1) : '—'} <span class="muted">%</span></dd></div>
-              <div><dt class="eyebrow">${termo('cv', 'CV')} válvula</dt><dd class="num">${tem ? num(tl.valvula, 1) : '—'} <span class="muted">%</span></dd></div>
+              <div><dt class="eyebrow">${termo('mv', 'MV')} válvula</dt><dd class="num">${tem ? num(tl.valvula, 1) : '—'} <span class="muted">%</span></dd></div>
               <div><dt class="eyebrow">Modo</dt><dd class="num">${tem ? (c.modoManual ? 'Manual' : 'Automático') : '—'}</dd></div>
               <div><dt class="eyebrow">Comunicação</dt><dd>${{ ok: '<span class="tag live">Recebendo</span>', aguardando: '<span class="tag warn">Aguardando</span>', sem_clp: '<span class="tag alarm">Sem CLP</span>', servidor_off: '<span class="tag alarm">Servidor off</span>' }[com]}</dd></div>`;
             let msg = '';
@@ -234,12 +234,12 @@ export async function montar(raiz, ctx) {
         palco.innerHTML = `
           <div id="passos"></div>
           <div class="lab-cab2"><h3 class="title">${esc(s.nome)}</h3><span class="tag warn">Em andamento</span></div>
-          <p class="note">${esc(t.numero)} · ${esc(t.nome)} · iniciada em ${dataHora(s.inicioEm)} · PV ${num(s.nivelInicial, 1)} %, SP ${num(s.setpointInicial, 1)} %, CV ${num(s.valvulaInicial, 1)} %, ${s.modoManualInicial ? 'manual' : 'automático'} no início.</p>
+          <p class="note">${esc(t.numero)} · ${esc(t.nome)} · iniciada em ${dataHora(s.inicioEm)} · PV ${num(s.nivelInicial, 1)} %, SP ${num(s.setpointInicial, 1)} %, MV ${num(s.valvulaInicial, 1)} %, ${s.modoManualInicial ? 'manual' : 'automático'} no início.</p>
           ${observacaoControle()}
           <dl class="lab-ro" id="lab-vivo"></dl>
           <p class="deteccao" id="deteccao" role="status"></p>
           <div class="chart-box chart-lab"><canvas id="cv-lab"></canvas></div>
-          <ul class="legenda" aria-label="Legenda"><li><i class="sw pv"></i>PV nível</li><li><i class="sw sp"></i>SP setpoint</li><li><i class="sw cv"></i>CV válvula</li></ul>
+          <ul class="legenda" aria-label="Legenda"><li><i class="sw pv"></i>PV nível</li><li><i class="sw sp"></i>SP setpoint</li><li><i class="sw cv"></i>MV válvula</li></ul>
           <div class="field"><label for="in-obs">Observações (opcional, guardadas ao encerrar)</label><textarea class="input" id="in-obs" rows="2" maxlength="500"></textarea></div>
           <div class="lab-acoes">
             <button type="button" class="btn primary" id="b-encerrar">Encerrar experimento</button>
@@ -247,7 +247,7 @@ export async function montar(raiz, ctx) {
           </div>
           <p class="error" id="e-fim" role="alert"></p>`;
 
-        est.chart = criarTendencia($('cv-lab'), { cv: true, ariaLabel: 'Trajetória de PV, SP e CV durante o experimento' });
+        est.chart = criarTendencia($('cv-lab'), { cv: true, ariaLabel: 'Trajetória de PV, SP e MV durante o experimento' });
         const inicio = new Date(s.inicioEm).getTime();
 
         async function atualizarServidor() { const r = await carregarDetalhe(s.id); if (r.ok) desenhar(); }
@@ -305,7 +305,7 @@ export async function montar(raiz, ctx) {
             $('lab-vivo').innerHTML = `<div><dt class="eyebrow">Tempo decorrido</dt><dd class="num">${duracao(tempoDecorrido)}</dd></div>
               <div><dt class="eyebrow">PV atual</dt><dd class="num">${num(tl.nivel, 1)} <span class="muted">%</span></dd></div>
               <div><dt class="eyebrow">SP atual</dt><dd class="num">${num(c.setpoint, 1)} <span class="muted">%</span></dd></div>
-              <div><dt class="eyebrow">CV atual</dt><dd class="num">${num(tl.valvula, 1)} <span class="muted">%</span></dd></div>
+              <div><dt class="eyebrow">MV atual</dt><dd class="num">${num(tl.valvula, 1)} <span class="muted">%</span></dd></div>
               <div><dt class="eyebrow">Modo</dt><dd class="num">${c.modoManual ? 'Manual' : 'Automático'}</dd></div>
               <div><dt class="eyebrow">PV mín · máx (desde o início)</dt><dd class="num">${pvs.length ? `${num(Math.min(...pvs), 1)} · ${num(Math.max(...pvs), 1)}` : '—'}</dd></div>
               <div><dt class="eyebrow">Comunicação</dt><dd>${{ ok: '<span class="tag live">Recebendo</span>', aguardando: '<span class="tag warn">Aguardando</span>', sem_clp: '<span class="tag alarm">Sem CLP</span>', servidor_off: '<span class="tag alarm">Servidor off</span>' }[com]}</dd></div>`;
@@ -374,7 +374,7 @@ export async function montar(raiz, ctx) {
           <p class="error" id="e-sim" role="alert"></p>
           <p class="deteccao" id="deteccao" role="status"></p>
           <div class="chart-box chart-lab"><canvas id="cv-lab"></canvas></div>
-          <ul class="legenda" aria-label="Legenda"><li><i class="sw pv"></i>PV nível</li><li><i class="sw sp"></i>SP setpoint</li><li><i class="sw cv"></i>CV válvula</li></ul>
+          <ul class="legenda" aria-label="Legenda"><li><i class="sw pv"></i>PV nível</li><li><i class="sw sp"></i>SP setpoint</li><li><i class="sw cv"></i>MV válvula</li></ul>
           <div class="field"><label for="in-obs">Observações (opcional, guardadas ao encerrar)</label><textarea class="input" id="in-obs" rows="2" maxlength="500"></textarea></div>
           <div class="lab-acoes">
             <button type="button" class="btn primary" id="b-encerrar">Encerrar experimento</button>
@@ -382,7 +382,7 @@ export async function montar(raiz, ctx) {
           </div>
           <p class="error" id="e-fim" role="alert"></p>`;
 
-        est.chart = criarTendencia($('cv-lab'), { cv: true, ariaLabel: 'Trajetória de PV, SP e CV da simulação' });
+        est.chart = criarTendencia($('cv-lab'), { cv: true, ariaLabel: 'Trajetória de PV, SP e MV da simulação' });
         const inicio = new Date(s.inicioEm).getTime();
         const ROTULOS = { SetpointAlterado: 'SP alterado', ModoAlterado: 'Modo alterado', PidAlterado: 'PID alterado', PerturbacaoSimulada: 'Dreno' };
 
@@ -392,7 +392,7 @@ export async function montar(raiz, ctx) {
             $('lab-vivo').innerHTML = `<div><dt class="eyebrow">Tempo simulado</dt><dd class="num">${duracao(x.decorrido)}</dd></div>
               <div><dt class="eyebrow">PV atual</dt><dd class="num">${num(x.nivel, 1)} <span class="muted">%</span></dd></div>
               <div><dt class="eyebrow">SP atual</dt><dd class="num">${num(x.setpoint, 1)} <span class="muted">%</span></dd></div>
-              <div><dt class="eyebrow">CV atual</dt><dd class="num">${num(x.valvula, 1)} <span class="muted">%</span></dd></div>
+              <div><dt class="eyebrow">MV atual</dt><dd class="num">${num(x.valvula, 1)} <span class="muted">%</span></dd></div>
               <div><dt class="eyebrow">Modo</dt><dd class="num">${x.manual ? 'Manual' : 'Automático'}</dd></div>
               <div><dt class="eyebrow">Velocidade</dt><dd class="num">${x.velocidade}×</dd></div>`;
             $('sm-modo').textContent = x.manual ? 'Voltar ao automático' : 'Passar para manual';
@@ -517,9 +517,9 @@ export async function montar(raiz, ctx) {
         if (s.tipo === 'automaticoManual') {
             const lin = (nome, m) => m ? `<tr><th scope="row">${nome}</th><td class="num">${duracao(m.segundos)}</td><td class="num">${m.pvMin === null ? '—' : num(m.pvMin, 1)} · ${m.pvMax === null ? '—' : num(m.pvMax, 1)}</td><td class="num">${m.cvMedio === null ? '—' : num(m.cvMedio, 1)} %</td></tr>` : `<tr><th scope="row">${nome}</th><td colspan="3" class="muted">sem amostras neste modo</td></tr>`;
             metricas = `<h4 class="eyebrow met-t">Por modo de operação</h4>
-              <div class="table-wrap"><table><thead><tr><th scope="col">Modo</th><th scope="col" class="num">Tempo</th><th scope="col" class="num">PV mín · máx (%)</th><th scope="col" class="num">CV médio</th></tr></thead><tbody>${lin('Automático', r.automatico)}${lin('Manual', r.manual)}</tbody></table></div>
+              <div class="table-wrap"><table><thead><tr><th scope="col">Modo</th><th scope="col" class="num">Tempo</th><th scope="col" class="num">PV mín · máx (%)</th><th scope="col" class="num">MV médio</th></tr></thead><tbody>${lin('Automático', r.automatico)}${lin('Manual', r.manual)}</tbody></table></div>
               <p class="note">${r.mudancasDeModo.length ? `Mudanças de modo ${sim ? 'feitas na simulação' : 'reportadas pelo CLP'}: ${r.mudancasDeModo.map((m) => `${hora(m.t)} → ${m.paraManual ? 'manual' : m.paraManual === false ? 'automático' : '?'}`).join(' · ')}.` : `Nenhuma mudança de modo ${sim ? 'foi feita na simulação' : 'foi reportada pelo CLP durante a sessão'}.`}
-              O Laboratório não alterna o modo sozinho. Em manual, a CV segue a abertura definida; em automático, o PID a calcula.</p>`;
+              O Laboratório não alterna o modo sozinho. Em manual, a MV segue a abertura definida; em automático, o PID a calcula.</p>`;
         }
 
         palco.innerHTML = `
@@ -529,14 +529,14 @@ export async function montar(raiz, ctx) {
           ${sim ? '<p class="banner info" role="status"><strong>Dados simulados.</strong> Vieram de um modelo do tanque executado no servidor, não do CLP, e não se misturam ao histórico real.</p>' : ''}
           ${cancelada ? '<p class="banner info" role="status">Sessão cancelada: os números abaixo são apenas os dados brutos do período, não um resultado de experimento.</p>' : ''}
           <div class="chart-box chart-lab"><canvas id="cv-lab"></canvas></div>
-          <ul class="legenda" aria-label="Legenda"><li><i class="sw pv"></i>PV nível</li><li><i class="sw sp"></i>SP setpoint</li><li><i class="sw cv"></i>CV válvula</li></ul>
+          <ul class="legenda" aria-label="Legenda"><li><i class="sw pv"></i>PV nível</li><li><i class="sw sp"></i>SP setpoint</li><li><i class="sw cv"></i>MV válvula</li></ul>
           <h4 class="eyebrow met-t">Resumo</h4>
           <dl class="lab-ro">
             ${linha('Duração', duracao(r.duracaoSegundos))}
             ${linha('Nível inicial → final', `${un(r.pv.inicial)} → ${un(r.pv.final)}`)}
             ${linha('Setpoint inicial → final', `${un(r.sp.inicial)} → ${un(r.sp.final)}`)}
             ${linha('PV mínima · máxima', r.pv.min === null ? '—' : `${num(r.pv.min, 1)} · ${num(r.pv.max, 1)} <span class="muted">%</span>`)}
-            ${linha('CV mínima · máxima', r.cv.min === null ? '—' : `${num(r.cv.min, 1)} · ${num(r.cv.max, 1)} <span class="muted">%</span>`)}
+            ${linha('MV mínima · máxima', r.cv.min === null ? '—' : `${num(r.cv.min, 1)} · ${num(r.cv.max, 1)} <span class="muted">%</span>`)}
             ${linha(sim ? 'Amostras' : 'Amostras persistidas', `${num(r.amostras, 0)}${r.truncado ? ' <span class="tag warn">truncado</span>' : ''}`)}
           </dl>
           ${r.amostras === 0 ? (sim ? '<p class="banner warn" role="status">Esta sessão simulada não guardou amostras (foi cancelada ou interrompida).</p>' : '<p class="banner warn" role="status">Nenhuma amostra foi persistida neste período (o CLP pode ter ficado sem comunicar). Nenhum valor foi inventado.</p>') : ''}
@@ -552,7 +552,7 @@ export async function montar(raiz, ctx) {
         $('ev-lab-vazio').hidden = ev.length > 0;
         $('b-nova').addEventListener('click', () => { est.vista = 'preparar'; est.sessao = null; est.erro = null; pintarLista(); pintarPalco(); });
 
-        est.chart = criarTendencia($('cv-lab'), { cv: true, ariaLabel: `Trajetória de PV, SP e CV da sessão ${s.nome}` });
+        est.chart = criarTendencia($('cv-lab'), { cv: true, ariaLabel: `Trajetória de PV, SP e MV da sessão ${s.nome}` });
         const marc = ev.filter((e) => ['SetpointAlterado', 'ModoAlterado', 'PidAlterado', 'PerturbacaoSimulada'].includes(e.tipo) || /Perdida|Alto$|Baixo$/.test(e.tipo)).map((e, i) => ({
             x: new Date(e.t).getTime(), rotulo: e.tipo === 'SetpointAlterado' ? 'SP alterado' : e.tipo === 'ModoAlterado' ? 'Modo alterado' : (sim ? ROTULO_SIM[e.tipo] : null) ?? rotuloEvento(e.tipo),
             cor: /Perdida|Alto$|Baixo$/.test(e.tipo) ? 'alarme' : 'texto', linha: i % 3

@@ -118,7 +118,7 @@ textarea.input { min-height: 64px; padding: 10px 12px; font: 400 17px/25px var(-
 .t-haste { stroke: var(--ln); stroke-width: 1.5; }
 
 .ov-ind { display: grid; gap: 4px; }
-/* PV sozinho em cima; SP e CV lado a lado abaixo, bem separados, para não se confundirem. */
+/* PV sozinho em cima; SP e MV lado a lado abaixo, bem separados, para não se confundirem. */
 .ro-main { display: grid; grid-template-columns: 1fr 1fr; gap: 0; margin-bottom: 28px; }
 .ro { padding: 20px 0 24px; border-top: 1px solid var(--hairline); }
 .ro-nivel { grid-column: 1 / -1; padding-bottom: 32px; }

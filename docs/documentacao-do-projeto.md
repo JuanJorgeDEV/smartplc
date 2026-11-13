@@ -45,7 +45,7 @@ Serve a dois mundos: **o chão de fábrica** (supervisionar e agir) e **a sala d
 
 | Tela | Para quê |
 |---|---|
-| Visão Geral | o tanque animado com nível (PV), setpoint (SP) e válvula (CV), alarmes e tendência |
+| Visão Geral | o tanque animado com nível (PV), setpoint (SP) e válvula (MV), alarmes e tendência |
 | Controle | enviar setpoint, modo manual/automático, válvula e PID, com confirmação e etapas |
 | Histórico | consultar o que aconteceu, por período, com os eventos |
 | Laboratório | experimentos guiados, com **simulação** ou com o CLP, e resumo automático |
@@ -197,7 +197,7 @@ O material para começar a editar está em [`docs/video/banco-de-conteudos.md`](
 
 - **CLP (PLC):** computador industrial que liga e desliga máquinas e lê sensores.
 - **Malha de controle:** o ciclo "medir, decidir, agir" (sensor, controlador, válvula).
-- **PV, SP, CV:** o valor medido (nível), o valor desejado e a saída do controlador (abertura da válvula).
+- **PV, SP, MV:** o valor medido (nível), o valor desejado e a variável manipulada (o sinal que o controlador envia à válvula, ou seja, a abertura).
 - **PID:** o cálculo mais comum do controlador; Kp, Ti e Td ajustam o quão forte e rápido ele reage.
 - **SCADA / supervisório:** sistema que mostra e comanda o processo a distância.
 - **PLCSIM:** simulador de CLP da Siemens, para testar sem a máquina.

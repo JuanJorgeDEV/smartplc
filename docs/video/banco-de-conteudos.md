@@ -55,7 +55,7 @@ Todas as imagens estão em `docs/evidencias/v2/`.
 
 | Cena | Imagem pronta | Observação |
 |---|---|---|
-| Painel principal, tema escuro | `desktop-1440-visao-geral-escuro` | tanque, PV/SP/CV, alarmes |
+| Painel principal, tema escuro | `desktop-1440-visao-geral-escuro` | tanque, PV/SP/MV, alarmes |
 | Painel principal, tema claro | `desktop-1440-visao-geral-claro` | para contraste com o "papel" |
 | Controle com confirmação | `desktop-1440-controle` | mostrar as etapas do comando |
 | Histórico | `desktop-1440-historico` | "quando foi?" |
@@ -87,7 +87,7 @@ Todas as imagens estão em `docs/evidencias/v2/`.
 - [ ] 3 a 5 conversas com técnico, operador ou supervisor: "o que te atrapalha hoje?" e "o que faltou na última parada?".
 
 **Gráficos para animar com dados reais:**
-- Curva da resposta ao degrau (PV, SP e CV) em câmera lenta, com a marca de 63 % e o tempo de acomodação.
+- Curva da resposta ao degrau (PV, SP e MV) em câmera lenta, com a marca de 63 % e o tempo de acomodação.
 - Comparação automático × manual (a PV deixa de ser regulada).
 - Caminho dos dados: CLP, Node-RED, nuvem, banco, painel, com o pacote "viajando".
 

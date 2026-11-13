@@ -7,7 +7,7 @@ Experimentos guiados **sobre a telemetria real da malha TQ-101**. Não existe um
 | Experimento | Objetivo | Resultado |
 |---|---|---|
 | 1 · Resposta ao setpoint | Ver como a PV reage a uma mudança de SP | Gráfico, resumo e métricas do degrau (quando os dados sustentam) |
-| 2 · Automático versus manual | Entender a diferença entre os modos | Tempo, PV mín/máx e CV médio por modo; mudanças de modo reportadas |
+| 2 · Automático versus manual | Entender a diferença entre os modos | Tempo, PV mín/máx e MV médio por modo; mudanças de modo reportadas |
 
 Fluxo: **preparar → iniciar → alterar (Controle, TIA Portal ou Node-RED) → observar → encerrar → revisar**. O Laboratório **não cria outro caminho de comando** e **não alterna o modo sozinho**. Com comandos desativados, a sessão funciona como observação: a mudança é feita fora e o SmartPLC a identifica quando o **CLP a reporta** (o marcador vertical é o instante da telemetria, não o do pedido).
 
@@ -19,7 +19,7 @@ Tabela `experiment_sessions` (RLS ligado no Supabase por `db/002_seguranca_rls.s
 |---|---|
 | `Id` (uuid), `Nome` (≤80), `Tipo`, `Status` (`ativa`/`encerrada`/`cancelada`), `InicioEm`, `FimEm` | Índice único parcial: **no máximo uma sessão ativa** (também protege de duas requisições simultâneas) |
 | `NivelInicial`, `SetpointInicial`, `NivelFinal`, `SetpointFinal` | Previstos no briefing |
-| `ValvulaInicial/Final`, `ModoManualInicial/Final` | **Acrescentados**: o passo "registrar PV, SP e CV iniciais" exige a CV; o modo é o dado central do experimento 2 |
+| `ValvulaInicial/Final`, `ModoManualInicial/Final` | **Acrescentados**: o passo "registrar PV, SP e MV iniciais" exige a MV; o modo é o dado central do experimento 2 |
 | `PlcOnlineInicial` | **Acrescentado**: evidência de que a sessão começou com comunicação válida (o servidor recusa iniciar sem ela) |
 | `Observacoes` (≤500) | Texto livre do usuário |
 
@@ -60,7 +60,7 @@ Considera apenas o **primeiro** degrau da sessão. A resolução vem da polític
 
 ## Conteúdo educativo
 
-Microexplicações estáticas (`wwwroot/js/glossary.js`), sem IA: CLP, processo, PV, SP, CV, malha fechada, PID, Kp, Ti, Td, modo manual/automático, degrau, tempo até 63 %, sobre-elevação e estabilização. São conceituais e dizem "em geral": o efeito real depende do PID implementado no CLP.
+Microexplicações estáticas (`wwwroot/js/glossary.js`), sem IA: CLP, processo, PV, SP, MV, malha fechada, PID, Kp, Ti, Td, modo manual/automático, degrau, tempo até 63 %, sobre-elevação e estabilização. São conceituais e dizem "em geral": o efeito real depende do PID implementado no CLP.
 
 ## Limitações
 

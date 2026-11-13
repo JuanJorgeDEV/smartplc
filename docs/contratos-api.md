@@ -33,7 +33,7 @@ Leitura é aberta; ingestão exige `X-Api-Key` quando configurada; comandos exig
 - **200** `{ status:"ok", comandoId, estadoComando:"recebido", confirmadoPeloClp:false, comando:{…}, controle }`. O `controle` devolvido é o que o **CLP reportou**, sem otimismo.
 - **502/504** `{ status:"erro", mensagem, comandoId, estadoComando:"falhou" }`; **403** desabilitado; **401** exige chave.
 
-Estados (`GET /api/comandos?limite=`, `GET /api/comandos/{id}`, evento `comando_update`): `solicitado → recebido → confirmado`, ou `falhou`, `expirado` (sem o valor na telemetria em `Command:ConfirmationSeconds`, padrão 10 s), `substituido`. Confirmação: **todos** os campos pedidos iguais ao reportado (SP e CV manual ±0,05; Kp/Ti/Td ±0,001; modo exato) em telemetria recebida **depois** do pedido. Se o CLP já reportava o valor, o detalhe avisa que a releitura não prova escrita. Os comandos recentes ficam na memória (zerados ao reiniciar).
+Estados (`GET /api/comandos?limite=`, `GET /api/comandos/{id}`, evento `comando_update`): `solicitado → recebido → confirmado`, ou `falhou`, `expirado` (sem o valor na telemetria em `Command:ConfirmationSeconds`, padrão 10 s), `substituido`. Confirmação: **todos** os campos pedidos iguais ao reportado (SP e MV manual ±0,05; Kp/Ti/Td ±0,001; modo exato) em telemetria recebida **depois** do pedido. Se o CLP já reportava o valor, o detalhe avisa que a releitura não prova escrita. Os comandos recentes ficam na memória (zerados ao reiniciar).
 
 ## Histórico (preservado do Marco 4)
 

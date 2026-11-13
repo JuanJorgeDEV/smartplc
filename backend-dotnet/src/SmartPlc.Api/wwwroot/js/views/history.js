@@ -53,7 +53,7 @@ export async function montar(raiz) {
   <div class="sec-head">
     <h2 class="eyebrow">${termo('pv', 'PV')} e ${termo('sp', 'SP')} no período</h2>
     <div class="sec-tools">
-      <ul class="legenda" aria-label="Legenda"><li><i class="sw pv"></i>PV nível</li><li><i class="sw sp"></i>SP setpoint</li><li><label class="check"><input type="checkbox" id="chk-cv"> <i class="sw cv"></i>CV válvula</label></li><li><label class="check"><input type="checkbox" id="chk-ev" checked> Marcar eventos</label></li></ul>
+      <ul class="legenda" aria-label="Legenda"><li><i class="sw pv"></i>PV nível</li><li><i class="sw sp"></i>SP setpoint</li><li><label class="check"><input type="checkbox" id="chk-cv"> <i class="sw cv"></i>MV válvula</label></li><li><label class="check"><input type="checkbox" id="chk-ev" checked> Marcar eventos</label></li></ul>
     </div>
   </div>
   <div class="chart-box"><canvas id="cv-hist"></canvas></div>

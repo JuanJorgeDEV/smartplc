@@ -84,7 +84,7 @@ export async function montar(raiz) {
       <p class="stage-msg" id="stage-msg" role="status"></p>
       ${SINOTICO()}
     </div>
-    <p class="note stage-nota">${termo('pv')} é o nível medido pelo transmissor LT-101; ${termo('sp')}, o nível desejado; ${termo('cv')}, a abertura da válvula FV-101. As animações só acompanham valores recebidos.</p>
+    <p class="note stage-nota">${termo('pv')} é o nível medido pelo transmissor LT-101; ${termo('sp')}, o nível desejado; ${termo('mv')}, a abertura da válvula FV-101. As animações só acompanham valores recebidos.</p>
   </section>
 
   <section class="ov-ind" aria-labelledby="t-ind">
@@ -102,7 +102,7 @@ export async function montar(raiz) {
   <div class="sec-head">
     <h2 id="t-tend" class="eyebrow">Tendência · PV e SP</h2>
     <div class="sec-tools">
-      <ul class="legenda" aria-label="Legenda"><li><i class="sw pv"></i>PV nível</li><li><i class="sw sp"></i>SP setpoint</li><li><label class="check"><input type="checkbox" id="chk-cv"> <i class="sw cv"></i>CV válvula</label></li></ul>
+      <ul class="legenda" aria-label="Legenda"><li><i class="sw pv"></i>PV nível</li><li><i class="sw sp"></i>SP setpoint</li><li><label class="check"><input type="checkbox" id="chk-cv"> <i class="sw cv"></i>MV válvula</label></li></ul>
       <label class="sr-only" for="sel-janela">Janela de tempo</label>
       <select class="input sel-curto" id="sel-janela"><option value="1">1 min</option><option value="5" selected>5 min</option><option value="15">15 min</option><option value="60">60 min</option></select>
       <button type="button" class="btn small" id="btn-pausa" aria-pressed="false">Pausar</button>
@@ -184,7 +184,7 @@ export async function montar(raiz) {
         $('ind-tag').className = `tag ${com === 'ok' ? 'live' : com === 'aguardando' ? 'warn' : 'alarm'}`;
         $('ind-tag').textContent = com === 'ok' ? 'Ao vivo' : com === 'aguardando' ? 'Sem leitura' : velho && state.status.telemetria.timestamp !== null ? 'Valor antigo' : 'Sem comunicação';
 
-        const grandes = [['nivel', 'Nível (PV)'], ['setpoint', 'Setpoint (SP)'], ['valvula', 'Saída (CV)']].filter(([c]) => p.variaveis[c].destaque);
+        const grandes = [['nivel', 'Nível (PV)'], ['setpoint', 'Setpoint (SP)'], ['valvula', 'Saída (MV)']].filter(([c]) => p.variaveis[c].destaque);
         $('ro-main').className = `ro-main${velho ? ' is-stale' : ''}`;
         $('ro-main').innerHTML = grandes.map(([c, padrao]) =>
             `<div class="ro ro-${c}"><dt class="eyebrow">${esc(rotuloVar(c, padrao))}</dt><dd><span class="num ro-v" data-ro="${c}">${textoValor(c)}</span><span class="ro-un">${unidade(c)}</span></dd></div>`).join('');

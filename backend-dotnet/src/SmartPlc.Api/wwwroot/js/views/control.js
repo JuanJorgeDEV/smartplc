@@ -69,7 +69,7 @@ export async function montar(raiz) {
       </div>
 
       <div class="saidas" aria-label="Diferença entre saída automática e manual">
-        <div><span class="eyebrow">${termo('automatico', 'Automático')} · saída do PID (${termo('cv', 'CV')})</span><span class="num big-s" id="v-cv">—</span><span class="muted"> %</span>
+        <div><span class="eyebrow">${termo('automatico', 'Automático')} · saída do PID (${termo('mv', 'MV')})</span><span class="num big-s" id="v-cv">—</span><span class="muted"> %</span>
           <p class="note">O PID calcula a abertura para levar a PV ao SP.</p></div>
         <div><span class="eyebrow">${termo('manual', 'Manual')} · abertura definida</span><span class="num big-s" id="v-cvman">—</span><span class="muted"> %</span>
           <p class="note">Valor guardado no CLP. Só governa a válvula no modo manual.</p></div>

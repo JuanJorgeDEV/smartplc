@@ -27,7 +27,7 @@ Cada tela é montada ao entrar e **desmontada ao sair** (ouvintes removidos, gr�
 
 - **Nada fictício.** Sem leitura, valores viram "—" e o tanque fica vazio; com leitura velha, os números ficam apagados com "valor antigo" e o horário. Os estados da comunicação são quatro e aparecem sempre na faixa superior: *Recebendo do CLP*, *Aguardando telemetria*, *Sem comunicação com o CLP*, *Servidor desconectado*.
 - **O CLP é a fonte da verdade.** "Valor no CLP" vem da telemetria. Um comando mostra etapas (solicitado → recebido → confirmado/falhou/expirado) e o novo valor só aparece depois da releitura.
-- **Animação só com dado novo.** O nível e o marcador de SP têm transição de 700 ms ao receber um valor; nada anima continuamente. `prefers-reduced-motion` desliga as transições. O fluxo na tubulação é apenas a opacidade proporcional à CV.
+- **Animação só com dado novo.** O nível e o marcador de SP têm transição de 700 ms ao receber um valor; nada anima continuamente. `prefers-reduced-motion` desliga as transições. O fluxo na tubulação é apenas a opacidade proporcional à MV.
 - **Sem credenciais no navegador.** O painel não envia nem guarda `X-Operator-Key`/`X-Api-Key`. Se o servidor exigir chave de operador, a tela de Controle fica em modo de consulta e explica por quê. Há um teste que garante que os arquivos estáticos não contêm essas chaves.
 
 ## Identidade visual
