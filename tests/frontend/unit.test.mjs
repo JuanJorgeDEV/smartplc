@@ -223,3 +223,78 @@ test('glossário: não promete comportamento específico do PID', () => {
     const t = (glos.TERMOS.kp[1] + glos.TERMOS.ti[1] + glos.TERMOS.td[1]).toLowerCase();
     assert.match(t, /em geral|pode/);
 });
+
+// ---------------- exportação .xlsx ----------------
+const xl = await carregar('xlsx.js');
+const exp = await carregar('exportar.js');
+
+/** Leitor mínimo de ZIP sem compressão (o que o gerador escreve): devolve nome -> texto. */
+function lerZip(bytes) {
+    const dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+    const fim = bytes.length - 22;
+    assert.equal(dv.getUint32(fim, true), 0x06054b50, 'fim do diretório central');
+    const n = dv.getUint16(fim + 10, true);
+    let pos = dv.getUint32(fim + 16, true);
+    const saida = new Map();
+    for (let i = 0; i < n; i++) {
+        assert.equal(dv.getUint32(pos, true), 0x02014b50);
+        const tam = dv.getUint32(pos + 24, true), nomeLen = dv.getUint16(pos + 28, true), extra = dv.getUint16(pos + 30, true), com = dv.getUint16(pos + 32, true);
+        const local = dv.getUint32(pos + 42, true), crc = dv.getUint32(pos + 16, true);
+        const nome = new TextDecoder().decode(bytes.subarray(pos + 46, pos + 46 + nomeLen));
+        const ini = local + 30 + dv.getUint16(local + 26, true) + dv.getUint16(local + 28, true);
+        const dados = bytes.subarray(ini, ini + tam);
+        assert.equal(xl.crc32(dados), crc, `CRC de ${nome}`);
+        saida.set(nome, new TextDecoder().decode(dados));
+        pos += 46 + nomeLen + extra + com;
+    }
+    return saida;
+}
+
+test('xlsx: CRC-32, letras de coluna e data do Excel', () => {
+    assert.equal(xl.crc32(new TextEncoder().encode('123456789')), 0xcbf43926);
+    assert.deepEqual([0, 25, 26, 27, 701, 702].map(xl.letraColuna), ['A', 'Z', 'AA', 'AB', 'ZZ', 'AAA']);
+    assert.equal(xl.serialExcel(Date.UTC(2026, 0, 1, 12, 0, 0), 0), 46023.5);          // 01/01/2026 12:00
+    assert.equal(xl.serialExcel(Date.UTC(2026, 0, 1, 15, 0, 0), 180), 46023.5);        // fuso -03:00: mesma hora de relógio
+});
+
+test('xlsx: arquivo tem as partes obrigatórias, valores, formatos e texto escapado', () => {
+    const arq = lerZip(xl.criarXlsx([{
+        nome: 'Dados: [teste]/1', filtro: true,
+        colunas: [{ titulo: 'Texto' }, { titulo: 'Valor', formato: '0.0' }, { titulo: 'Quando', formato: 'data' }],
+        linhas: [['a & <b>', 55.55, { data: Date.UTC(2026, 0, 1, 12) }], ['=SOMA(A1)', null, null], [true, 0, new Date(0)]]
+    }]));
+    for (const p of ['[Content_Types].xml', '_rels/.rels', 'xl/workbook.xml', 'xl/_rels/workbook.xml.rels', 'xl/styles.xml', 'xl/worksheets/sheet1.xml']) assert.ok(arq.has(p), `falta ${p}`);
+    assert.match(arq.get('xl/workbook.xml'), /name="Dados   teste  1"/, 'nome da aba sem caracteres proibidos');
+    const aba = arq.get('xl/worksheets/sheet1.xml');
+    assert.match(aba, /a &amp; &lt;b&gt;/);
+    assert.match(aba, /<c r="B2" s="3"><v>55.55<\/v><\/c>/);                              // número com formato 0.0
+    assert.match(aba, /<c r="C2" s="2"><v>\d+(\.\d+)?<\/v><\/c>/);                       // data como número de série
+    assert.match(aba, /<c r="A3" t="inlineStr"><is><t xml:space="preserve">=SOMA\(A1\)<\/t><\/is><\/c>/, 'texto com = continua texto, nunca fórmula');
+    assert.doesNotMatch(aba, /<f>/);
+    assert.doesNotMatch(aba, /r="B3"/, 'valor ausente não vira zero');
+    assert.match(aba, /r="B4"><v>0<\/v>|r="B4" s="3"><v>0<\/v>/, 'zero real continua zero');
+    assert.match(aba, /<autoFilter ref="A1:C4"\/>/);
+    assert.match(arq.get('xl/styles.xml'), /formatCode="0.0"/);
+});
+
+test('exportar: abas da sessão e do período', () => {
+    const a = exp.abasSessao([{ t: 1000, pv: 50.5, sp: 60, cv: 40, modo: false }, { t: 2000, pv: null, sp: 60, cv: 40, modo: true }], 5000);
+    assert.deepEqual(a.map((x) => x.nome), ['Sessão', 'Informações']);
+    assert.equal(a[0].linhas.length, 2);
+    assert.equal(a[0].linhas[0][4], 'Automático');
+    assert.equal(a[0].linhas[1][4], 'Manual');
+    assert.equal(a[0].linhas[1][1], null, 'PV ausente fica vazio');
+
+    const p = exp.abasPeriodo({
+        amostras: [{ t: '2026-01-01T12:00:00Z', adquiridoEm: null, nivel: 10, setpoint: 20, valvula: 30, modoManual: null, motivo: 'Periodic' }],
+        eventos: [{ t: '2026-01-01T12:01:00Z', tipo: 'NivelAlto', valorAnterior: 89, valorNovo: 91, detalhe: null }],
+        de: Date.UTC(2026, 0, 1, 11), ate: Date.UTC(2026, 0, 1, 13), temMais: true, rotuloEvento: (t) => `rótulo ${t}`, motivo: (m) => `motivo ${m}`
+    }, 5000);
+    assert.deepEqual(p.map((x) => x.nome), ['Amostras', 'Eventos', 'Informações']);
+    assert.equal(p[0].linhas[0][1], null);
+    assert.equal(p[0].linhas[0][5], '');
+    assert.equal(p[0].linhas[0][6], 'motivo Periodic');
+    assert.equal(p[1].linhas[0][1], 'rótulo NivelAlto');
+    assert.match(p[2].linhas.find((l) => l[0] === 'Está completo?')[1], /^Não/);
+    xl.criarXlsx(p);                                                                       // não pode lançar
+});

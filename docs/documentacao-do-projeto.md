@@ -127,7 +127,7 @@ Documentos técnicos de apoio (em `docs/`): `deploy`, `modelo-dados`, `contratos
 
 1. **Testar a cadeia completa com o PLCSIM do parceiro**, incluindo um comando. É a prova que falta.
 2. **Auditoria de comandos:** registrar quem pediu o quê e quando (a tabela já está reservada).
-3. **Relatório do experimento** em CSV e PDF, para anexar a trabalhos.
+3. **Relatório do experimento** em XLSX e PDF, para anexar a trabalhos.
 4. **Testes automáticos no GitHub** a cada alteração (integração contínua).
 5. **Manter o banco acordado:** um monitor de disponibilidade e um aviso antes de pausar.
 

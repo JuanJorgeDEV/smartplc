@@ -182,7 +182,7 @@ test('histórico: consulta o banco, mostra amostras e eventos e valida o interva
     await esperar(`document.getElementById('info')?.textContent.includes('Amostras retornadas') && !document.getElementById('info').textContent.includes('carregando')`, 20000, 'consulta concluída');
     const amostras = Number(await avaliar(`document.querySelector('#info div:nth-child(2) dd').textContent.replace(/[^\\d]/g, '')`));
     assert.ok(amostras > 0, 'deve haver amostras persistidas');
-    assert.equal(await avaliar(`document.getElementById('b-csv-banco').disabled`), false);
+    assert.equal(await avaliar(`document.getElementById('b-xlsx-banco').disabled`), false);
     assert.equal(await avaliar(`document.getElementById('cv-hist').getAttribute('aria-label').includes('amostras')`), true);
 
     await clicar('#seg-per [data-p="6h"]');

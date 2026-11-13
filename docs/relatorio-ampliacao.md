@@ -117,7 +117,7 @@ Ordem sugerida para o Projeto Integrador (impacto alto e custo baixo primeiro).
 | 1 | **Publicar e testar com o CLP/PLCSIM do colega** | provar a cadeia completa de verdade | pequeno |
 | 2 | **Sintonia assistida** | a partir do degrau do Laboratório, sugere Kp/Ti/Td (Ziegler-Nichols, Cohen-Coon) e mostra a curva prevista × real | médio |
 | 3 | **Auditoria de comandos** | quem pediu cada comando, quando e se foi confirmado (a tabela já está reservada) | pequeno |
-| 4 | **Relatório do experimento** | exportar a sessão em CSV e PDF (gráfico, métricas, observações) para anexar ao trabalho | pequeno |
+| 4 | **Relatório do experimento** | exportar a sessão em XLSX e PDF (gráfico, métricas, observações) para anexar ao trabalho | pequeno |
 | 5 | **Alarmes com notificação** | histórico de alarmes, "quem reconheceu" e aviso por e-mail ou Telegram | médio |
 | 6 | **Indicadores de desempenho** | IAE/ISE, tempo de acomodação e comparação lado a lado de várias sessões | pequeno |
 | 7 | **Teste automático na nuvem (CI)** | os 500 testes rodam a cada alteração no GitHub | pequeno |

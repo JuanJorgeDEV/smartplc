@@ -1,7 +1,8 @@
 // Visão Geral: o tanque TQ-101 é o protagonista. Todos os números vêm da telemetria; sem leitura, mostra "—".
 import { state, on, comunicacao, idadeAtualSeg, limiteObsoleto, reconhecerAlarmes } from '../store.js';
 import { prefs, nomeDe, casasDe, aoMudar } from '../prefs.js';
-import { clamp, num, hora, idade, esc, baixarArquivo, carimboArquivo, csvNum } from '../format.js';
+import { clamp, num, hora, idade, esc } from '../format.js';
+import { exportarSessao } from '../exportar.js';
 import { termo } from '../glossary.js';
 import { criarTendencia, atualizar, aplicarTema, destruir } from '../charts.js';
 import * as api from '../api.js';
@@ -106,7 +107,7 @@ export async function montar(raiz) {
       <label class="sr-only" for="sel-janela">Janela de tempo</label>
       <select class="input sel-curto" id="sel-janela"><option value="1">1 min</option><option value="5" selected>5 min</option><option value="15">15 min</option><option value="60">60 min</option></select>
       <button type="button" class="btn small" id="btn-pausa" aria-pressed="false">Pausar</button>
-      <button type="button" class="btn small" id="btn-csv">Exportar sessão (CSV)</button>
+      <button type="button" class="btn small" id="btn-xlsx">Exportar sessão (XLSX)</button>
     </div>
   </div>
   <div class="chart-box"><canvas id="cv-tendencia"></canvas></div>
@@ -277,11 +278,7 @@ export async function montar(raiz) {
     $('chk-cv').addEventListener('change', (e) => { mostrarCv = e.target.checked; if (chart) { chart.data.datasets[2].hidden = !mostrarCv; chart.update('none'); } });
     $('btn-pausa').addEventListener('click', (e) => { pausado = !pausado; e.currentTarget.textContent = pausado ? 'Retomar' : 'Pausar'; e.currentTarget.setAttribute('aria-pressed', String(pausado)); if (!pausado) desenhar(); });
     $('btn-ack').addEventListener('click', () => reconhecerAlarmes());
-    $('btn-csv').addEventListener('click', () => {
-        if (!state.amostras.length) return;
-        const linhas = ['hora_iso,nivel_pct,setpoint_pct,saida_valvula_pct', ...state.amostras.map((s) => `${new Date(s.t).toISOString()},${csvNum(s.pv)},${csvNum(s.sp)},${csvNum(s.cv)}`)];
-        baixarArquivo(`tq101_sessao_${carimboArquivo()}.csv`, linhas.join('\n'));
-    });
+    $('btn-xlsx').addEventListener('click', () => { if (state.amostras.length) exportarSessao(state.amostras); });
 
     const offs = [
         on('status', () => { pintarTanque(); pintarIndicadores(); pintarAlarmes(); desenhar(); }),

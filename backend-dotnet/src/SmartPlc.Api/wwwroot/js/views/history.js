@@ -1,6 +1,7 @@
 // Histórico: consome /api/historico e /api/eventos (dados persistidos no PostgreSQL). Nunca usa a memória da aba como se fosse histórico.
 import { state, on } from '../store.js';
-import { num, dataHora, hora, duracao, esc, paraInputLocal, baixarArquivo, carimboArquivo, csvNum } from '../format.js';
+import { num, dataHora, hora, duracao, esc, paraInputLocal } from '../format.js';
+import { exportarSessao, exportarPeriodo } from '../exportar.js';
 import { criarTendencia, atualizar, aplicarTema, destruir } from '../charts.js';
 import { rotuloEvento } from './overview.js';
 import { termo } from '../glossary.js';
@@ -60,10 +61,10 @@ export async function montar(raiz) {
   <p class="note" id="msg-vazio" hidden></p>
   <div class="hist-acoes">
     <button type="button" class="btn" id="b-mais" hidden>Carregar mais amostras</button>
-    <button type="button" class="btn" id="b-csv-banco">Exportar período carregado (banco)</button>
-    <button type="button" class="btn" id="b-csv-aba">Exportar sessão atual (memória da aba)</button>
+    <button type="button" class="btn" id="b-xlsx-banco">Exportar período carregado (XLSX)</button>
+    <button type="button" class="btn" id="b-xlsx-aba">Exportar sessão atual (XLSX)</button>
   </div>
-  <p class="note">"Período carregado (banco)" exporta apenas as amostras persistidas já carregadas acima. "Sessão atual" exporta as leituras recebidas por esta aba (até 60 min), que não são histórico permanente.</p>
+  <p class="note">"Período carregado" exporta as amostras e os eventos persistidos no banco que já estão carregados acima, em uma planilha com as abas Amostras, Eventos e Informações. "Sessão atual" exporta as leituras recebidas por esta aba (até 60 min), que não são histórico permanente.</p>
 
   <div class="sec-head"><h2 class="eyebrow">Eventos</h2>
     <div class="sec-tools"><label class="sr-only" for="sel-ev">Filtrar eventos</label>
@@ -145,7 +146,7 @@ export async function montar(raiz) {
         $('b-mais').hidden = !est.proxA;
         $('b-mais').disabled = est.carregando;
         $('b-mais').textContent = est.carregando ? 'Carregando…' : `Carregar mais amostras (próximas ${num(limite, 0)})`;
-        $('b-csv-banco').disabled = n === 0;
+        $('b-xlsx-banco').disabled = n === 0;
         $('b-mais-ev').hidden = !est.proxE;
 
         desenhar();
@@ -186,14 +187,10 @@ export async function montar(raiz) {
 
     // ---------- Exportações ----------
     function exportarBanco() {
-        const linhas = ['hora_iso,hora_aquisicao_iso,nivel_pct,setpoint_pct,saida_valvula_pct,modo_manual,motivo', ...est.amostras.map((s) =>
-            `${s.t},${s.adquiridoEm ?? ''},${csvNum(s.nivel)},${csvNum(s.setpoint)},${csvNum(s.valvula)},${s.modoManual === null ? '' : s.modoManual},${s.motivo}`)];
-        baixarArquivo(`tq101_historico_banco_${carimboArquivo()}.csv`, linhas.join('\n'));
+        exportarPeriodo({ amostras: est.amostras, eventos: est.eventos, de: est.de, ate: est.ate, temMais: !!(est.proxA || est.proxE), rotuloEvento, motivo: (m) => MOTIVO[m] ?? m });
     }
-    function exportarSessao() {
-        if (!state.amostras.length) return;
-        const linhas = ['hora_iso,nivel_pct,setpoint_pct,saida_valvula_pct', ...state.amostras.map((s) => `${new Date(s.t).toISOString()},${csvNum(s.pv)},${csvNum(s.sp)},${csvNum(s.cv)}`)];
-        baixarArquivo(`tq101_sessao_aba_${carimboArquivo()}.csv`, linhas.join('\n'));
+    function exportarAba() {
+        if (state.amostras.length) exportarSessao(state.amostras);
     }
 
     // ---------- Ligações ----------
@@ -216,8 +213,8 @@ export async function montar(raiz) {
     });
     $('b-mais').addEventListener('click', maisAmostras);
     $('b-mais-ev').addEventListener('click', maisEventos);
-    $('b-csv-banco').addEventListener('click', exportarBanco);
-    $('b-csv-aba').addEventListener('click', exportarSessao);
+    $('b-xlsx-banco').addEventListener('click', exportarBanco);
+    $('b-xlsx-aba').addEventListener('click', exportarAba);
     $('chk-cv').addEventListener('change', (e) => { if (chart) { chart.data.datasets[2].hidden = !e.target.checked; chart.update('none'); } });
     $('chk-ev').addEventListener('change', (e) => { est.marcar = e.target.checked; desenhar(); });
     $('sel-ev').addEventListener('change', (e) => { est.filtro = e.target.value; desenhar(); pintarEventos(); });
